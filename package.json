@@ -1,0 +1,36 @@
+{
+  "name": "syllabusos",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/A5bhinav/SyllabusOS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/A5bhinav/SyllabusOS/issues"
+  },
+  "homepage": "https://github.com/A5bhinav/SyllabusOS#readme",
+  "dependencies": {
+    "@langchain/google-genai": "^2.1.8",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.90.1",
+    "@types/node": "^25.0.8",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "csv-parse": "^6.1.0",
+    "langchain": "^1.2.8",
+    "next": "^16.1.1",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

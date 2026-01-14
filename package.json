@@ -1,10 +1,13 @@
 {
   "name": "syllabusos",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "AI Professor-in-a-Box - Course management system with multi-agent routing",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "repository": {
     "type": "git",
@@ -13,7 +16,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/A5bhinav/SyllabusOS/issues"
   },

@@ -2,24 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { Users, Mail, Calendar } from 'lucide-react'
+import { Users, Mail, Calendar, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
-
-interface EnrolledStudent {
-  id: string
-  courseId: string
-  courseName: string
-  studentId: string
-  studentName: string | null
-  studentEmail: string | null
-  enrolledAt: string
-}
+import { getEnrollments, removeEnrollment, type EnrolledStudent } from '@/lib/api/enrollments'
 
 export function EnrolledStudents({ courseId }: { courseId?: string }) {
   const [students, setStudents] = useState<EnrolledStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadEnrollments()
@@ -30,23 +23,43 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
       setLoading(true)
       setError(null)
       
-      const url = courseId 
-        ? `/api/enrollments?courseId=${courseId}`
-        : '/api/enrollments'
-      
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error('Failed to load enrollments')
-      }
-      
-      const data = await response.json()
+      const data = await getEnrollments(courseId)
       setStudents(data || [])
     } catch (err) {
       console.error('Error loading enrollments:', err)
       setError('Failed to load enrolled students')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleRemoveStudent(student: EnrolledStudent) {
+    const studentName = student.studentName || student.studentEmail || 'this student'
+    const confirmed = window.confirm(
+      `Are you sure you want to remove ${studentName} from ${student.courseName || 'the course'}? This action cannot be undone.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setRemovingIds((prev) => new Set(prev).add(student.id))
+      setError(null)
+
+      await removeEnrollment(student.id)
+
+      // Remove the student from the list
+      setStudents((prev) => prev.filter((s) => s.id !== student.id))
+    } catch (err) {
+      console.error('Error removing student:', err)
+      setError(err instanceof Error ? err.message : 'Failed to remove student')
+    } finally {
+      setRemovingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(student.id)
+        return next
+      })
     }
   }
 
@@ -98,7 +111,7 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
                     <div className="flex items-center gap-2 mb-1">
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">
-                        {student.studentName || 'Unknown Student'}
+                        {student.studentName || student.studentEmail?.split('@')[0] || 'Unknown Student'}
                       </span>
                     </div>
                     
@@ -126,6 +139,21 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
                       </div>
                     )}
                   </div>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveStudent(student)}
+                    disabled={removingIds.has(student.id)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title="Remove student from course"
+                  >
+                    {removingIds.has(student.id) ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
             ))}

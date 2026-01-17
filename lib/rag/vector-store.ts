@@ -152,26 +152,27 @@ export async function storeDocumentsWithEmbeddings(
             if (Array.isArray(batchVectors)) {
               normalizedVectors = batchVectors
             } 
-            // If it's an object, try to extract embeddings from common structures
-            else if (typeof batchVectors === 'object') {
+            // If it's an object (and not null or array), try to extract embeddings from common structures
+            else if (typeof batchVectors === 'object' && batchVectors !== null && !Array.isArray(batchVectors)) {
+              const batchObj = batchVectors as Record<string, any>
               // Check if it has a data property (common API response format)
-              if (batchVectors.data && Array.isArray(batchVectors.data)) {
-                normalizedVectors = batchVectors.data
+              if (batchObj.data && Array.isArray(batchObj.data)) {
+                normalizedVectors = batchObj.data
               }
               // Check if it has an embeddings property
-              else if (batchVectors.embeddings && Array.isArray(batchVectors.embeddings)) {
-                normalizedVectors = batchVectors.embeddings
+              else if (batchObj.embeddings && Array.isArray(batchObj.embeddings)) {
+                normalizedVectors = batchObj.embeddings
               }
               // Check if it's an object with numeric keys (could be a sparse array-like object)
-              else if (Object.keys(batchVectors).length > 0) {
-                const keys = Object.keys(batchVectors).map(k => parseInt(k)).filter(k => !isNaN(k))
+              else if (Object.keys(batchObj).length > 0) {
+                const keys = Object.keys(batchObj).map(k => parseInt(k)).filter(k => !isNaN(k))
                 if (keys.length > 0) {
-                  normalizedVectors = keys.sort((a, b) => a - b).map(k => batchVectors[k]).filter(v => Array.isArray(v))
+                  normalizedVectors = keys.sort((a, b) => a - b).map(k => batchObj[k]).filter(v => Array.isArray(v))
                 } else {
-                  throw new Error(`Unexpected response format for batch ${Math.floor(i / batchSize) + 1}: object with keys ${Object.keys(batchVectors).join(', ')}`)
+                  throw new Error(`Unexpected response format for batch ${Math.floor(i / batchSize) + 1}: object with keys ${Object.keys(batchObj).join(', ')}`)
                 }
               } else {
-                throw new Error(`Unexpected response format for batch ${Math.floor(i / batchSize) + 1}: received ${typeof batchVectors} with ${Object.keys(batchVectors).length} keys`)
+                throw new Error(`Unexpected response format for batch ${Math.floor(i / batchSize) + 1}: received ${typeof batchVectors} with ${Object.keys(batchObj).length} keys`)
               }
             } else {
               throw new Error(`Unexpected response type for batch ${Math.floor(i / batchSize) + 1}: ${typeof batchVectors}`)

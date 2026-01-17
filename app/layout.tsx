@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { Toaster } from '@/components/ui/toaster'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 export const metadata: Metadata = {
   title: 'SyllabusOS',
@@ -13,7 +15,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <ErrorBoundary>
+          {children}
+          <Toaster />
+        </ErrorBoundary>
+      </body>
     </html>
   )
 }

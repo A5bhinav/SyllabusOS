@@ -8,6 +8,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { MessageBubble, type Message } from './MessageBubble'
 import { sendChatMessage, getChatHistory } from '@/lib/api/chat'
 import { Send, AlertCircle } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 interface ChatInterfaceProps {
   courseId: string
@@ -18,6 +19,7 @@ interface ChatInterfaceProps {
 type OptimisticMessage = Message | { id: string; text: string; role: 'user' | 'assistant'; timestamp: Date; pending?: boolean }
 
 export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatInterfaceProps) {
+  const { toast } = useToast()
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
@@ -222,7 +224,14 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         return [...withoutUser, userMessage, assistantMessage]
       })
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to send message. Please try again.')
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to send message. Please try again.'
+      setError(errorMsg)
+      
+      toast({
+        title: 'Message Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      })
       
       // Remove the optimistic user message on error by reverting messages state
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id))

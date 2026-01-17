@@ -12,9 +12,11 @@ import { CourseManagement } from '@/components/professor/CourseManagement'
 import { EnrolledStudents } from '@/components/professor/EnrolledStudents'
 import { triggerConductor } from '@/lib/api/conductor'
 import { LogOut, Play, RefreshCw } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export default function DashboardContent() {
   const router = useRouter()
+  const { toast } = useToast()
   const [signingOut, setSigningOut] = useState(false)
   const [conductorLoading, setConductorLoading] = useState(false)
   const [conductorError, setConductorError] = useState<string | null>(null)
@@ -47,18 +49,33 @@ export default function DashboardContent() {
       const response = await triggerConductor({ manual: true })
       
       if (response.success) {
+        toast({
+          title: 'Conductor Triggered',
+          description: 'Sunday Night Conductor has been executed successfully.',
+        })
         // Show success message and refresh widgets
         // The widgets will auto-refresh on mount, but we can trigger a page refresh
         setTimeout(() => {
           window.location.reload()
         }, 1000)
       } else {
-        setConductorError(response.error || 'Failed to trigger conductor')
+        const errorMsg = response.error || 'Failed to trigger conductor'
+        setConductorError(errorMsg)
+        toast({
+          title: 'Conductor Failed',
+          description: errorMsg,
+          variant: 'destructive',
+        })
       }
     } catch (err: any) {
       console.error('Error triggering conductor:', err)
       const errorMessage = err?.response?.data?.message || err?.message || 'Failed to trigger conductor. Please try again.'
       setConductorError(errorMessage)
+      toast({
+        title: 'Conductor Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
     } finally {
       setConductorLoading(false)
     }
@@ -71,14 +88,14 @@ export default function DashboardContent() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Professor Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Professor Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your course and view student activity
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={handleTriggerConductor}

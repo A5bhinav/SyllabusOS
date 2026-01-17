@@ -1,5 +1,4 @@
 import { generateChatCompletion, isMockMode, type AgentRoute } from '../ai/client'
-import { createClassificationChain } from '../ai/langchain-setup'
 
 export interface RoutingDecision {
   route: AgentRoute

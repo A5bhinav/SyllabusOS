@@ -1,4 +1,5 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
+import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 
 /**
  * Gemini AI Client for chat completions
@@ -68,14 +69,14 @@ export async function generateChatCompletion(
   try {
     const messages = []
     if (systemPrompt) {
-      messages.push(['system', systemPrompt] as [string, string])
+      messages.push(new SystemMessage(systemPrompt))
     }
-    messages.push(['human', prompt] as [string, string])
+    messages.push(new HumanMessage(prompt))
 
     const response = await client.invoke(messages)
     
     return {
-      text: response.content as string,
+      text: typeof response.content === 'string' ? response.content : String(response.content),
       usage: {
         // Gemini API doesn't always provide token counts in response
         // These would need to be calculated separately if needed

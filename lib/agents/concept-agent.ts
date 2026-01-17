@@ -1,16 +1,6 @@
 import { retrieveRelevantChunks, generateCitations, combineChunksIntoContext } from '../rag/retrieval'
 import { generateChatCompletion, isMockMode } from '../ai/client'
-
-export interface AgentResponse {
-  response: string
-  citations: Array<{
-    source: string
-    page?: number
-    content: string
-  }>
-  confidence: number
-  shouldEscalate: boolean
-}
+import type { AgentResponse } from './types'
 
 /**
  * Concept Agent (CONCEPT)

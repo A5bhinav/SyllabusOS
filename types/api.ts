@@ -86,8 +86,26 @@ export interface ConductorRequest {
 
 export interface ConductorResponse {
   success: boolean
+  message?: string
   announcementId?: string
   weekNumber?: number
+  announcement?: {
+    id: string
+    weekNumber: number
+    title: string
+    content: string
+    status: 'draft' | 'published'
+  }
+  results?: Array<{
+    announcementId: string
+    weekNumber: number
+    title: string
+    status: 'draft' | 'published'
+  }>
+  demoMode?: {
+    enabled: boolean
+    currentWeek?: number
+  }
   error?: string
 }
 

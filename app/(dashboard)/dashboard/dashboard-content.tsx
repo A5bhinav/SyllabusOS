@@ -11,13 +11,14 @@ import { EscalationQueue } from '@/components/professor/EscalationQueue'
 import { PulseReport } from '@/components/professor/PulseReport'
 import { triggerConductor } from '@/lib/api/conductor'
 import Link from 'next/link'
-import { Upload, LogOut, Play } from 'lucide-react'
+import { Upload, LogOut, Play, RefreshCw } from 'lucide-react'
 
 export default function DashboardContent() {
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
   const [conductorLoading, setConductorLoading] = useState(false)
   const [conductorError, setConductorError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -46,19 +47,26 @@ export default function DashboardContent() {
       const response = await triggerConductor({ manual: true })
       
       if (response.success) {
-        // Refresh the page after a short delay to show new announcements
+        // Show success message and refresh widgets
+        // The widgets will auto-refresh on mount, but we can trigger a page refresh
         setTimeout(() => {
           window.location.reload()
         }, 1000)
       } else {
         setConductorError(response.error || 'Failed to trigger conductor')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error triggering conductor:', err)
-      setConductorError('Failed to trigger conductor. Please try again.')
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to trigger conductor. Please try again.'
+      setConductorError(errorMessage)
     } finally {
       setConductorLoading(false)
     }
+  }
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    window.location.reload()
   }
 
   return (
@@ -83,6 +91,15 @@ export default function DashboardContent() {
               <Play className="h-4 w-4" />
             )}
             Run Conductor
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
           <Button
             variant="outline"

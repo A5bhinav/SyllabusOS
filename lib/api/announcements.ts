@@ -36,3 +36,10 @@ export async function updateAnnouncement(
   );
   return response.data;
 }
+
+/**
+ * Delete an announcement
+ */
+export async function deleteAnnouncement(id: string): Promise<void> {
+  await apiClient.delete(`/announcements/${id}`);
+}

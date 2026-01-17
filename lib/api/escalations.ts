@@ -13,5 +13,8 @@ export async function getEscalations(): Promise<Escalation[]> {
  * Resolve an escalation
  */
 export async function resolveEscalation(id: string): Promise<void> {
-  await apiClient.put(`/escalations/${id}`, { status: 'resolved' });
+  await apiClient.put('/escalations', { 
+    escalationId: id,
+    status: 'resolved' 
+  });
 }

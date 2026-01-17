@@ -14,6 +14,7 @@ interface FileUploadProps {
   onFileSelect: (file: File | null) => void
   maxSizeMB?: number
   disabled?: boolean
+  uploadProgress?: number // Progress from 0 to 100
 }
 
 export function FileUpload({
@@ -23,6 +24,7 @@ export function FileUpload({
   onFileSelect,
   maxSizeMB = 10,
   disabled = false,
+  uploadProgress,
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -135,25 +137,43 @@ export function FileUpload({
               </label>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <File className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <File className="h-8 w-8 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
                 </div>
+                {!uploadProgress && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRemove}
+                    disabled={disabled}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={handleRemove}
-                disabled={disabled}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {uploadProgress !== undefined && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Uploading...</span>
+                    <span className="text-muted-foreground">{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {error && (

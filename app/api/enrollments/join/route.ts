@@ -108,8 +108,23 @@ export async function POST(request: NextRequest) {
 
     if (insertError || !enrollment) {
       console.error('[Enrollments Join API] Error creating enrollment:', insertError)
+      
+      // Provide more specific error message
+      let errorMessage = 'Failed to enroll in course'
+      if (insertError) {
+        // Check for RLS policy violation
+        if (insertError.message?.includes('policy') || insertError.message?.includes('permission denied')) {
+          errorMessage = 'Permission denied. Please ensure you have the correct permissions to enroll in courses.'
+        } else if (insertError.code === '23505') {
+          // Unique constraint violation (already enrolled)
+          errorMessage = 'You are already enrolled in this course'
+        } else {
+          errorMessage = insertError.message || errorMessage
+        }
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to enroll in course' },
+        { error: errorMessage },
         { status: 500 }
       )
     }

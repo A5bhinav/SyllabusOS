@@ -115,3 +115,14 @@ export interface PulseResponse {
   }
 }
 
+export interface Course {
+  id: string
+  name: string
+  professorId: string
+  professorName: string | null
+  professorEmail: string | null
+  createdAt: string
+  updatedAt: string
+  isEnrolled: boolean // For students: indicates if they're enrolled in this course
+}
+

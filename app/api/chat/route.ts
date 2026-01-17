@@ -137,8 +137,7 @@ export async function POST(request: NextRequest) {
           const escalation = await escalationHandler.createEscalation(
             message,
             courseId,
-            userId,
-            'POLICY'
+            userId
           )
           escalationId = escalation.escalationId
             } catch (escalationError) {
@@ -166,8 +165,7 @@ export async function POST(request: NextRequest) {
           const escalation = await escalationHandler.createEscalation(
             message,
             courseId,
-            userId,
-            'CONCEPT'
+            userId
           )
           escalationId = escalation.escalationId
             } catch (escalationError) {
@@ -191,8 +189,7 @@ export async function POST(request: NextRequest) {
         const escalation = await escalationHandler.createEscalation(
           message,
           courseId,
-          userId,
-          routingDecision.route
+          userId
         )
         escalationId = escalation.escalationId
 

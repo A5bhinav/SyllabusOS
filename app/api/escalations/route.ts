@@ -144,9 +144,40 @@ export async function GET(request: NextRequest) {
       respondedBy: e.responded_by || null,
     }))
 
+    // Pattern detection: Count escalations by category for the past week
+    const patterns: Array<{ category: string; count: number }> = []
+    if (profile.role === 'professor' && response.length > 0) {
+      const oneWeekAgo = new Date()
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+      
+      const categoryCounts: Record<string, number> = {}
+      for (const escalation of response) {
+        // Only count pending escalations from the past week
+        const createdAt = new Date(escalation.createdAt)
+        if (escalation.status === 'pending' && createdAt >= oneWeekAgo && escalation.category) {
+          categoryCounts[escalation.category] = (categoryCounts[escalation.category] || 0) + 1
+        }
+      }
+
+      // Convert to array and filter out categories with count < 2 (only show patterns)
+      for (const [category, count] of Object.entries(categoryCounts)) {
+        if (count >= 2) {
+          patterns.push({ category, count })
+        }
+      }
+
+      // Sort by count descending
+      patterns.sort((a, b) => b.count - a.count)
+    }
+
     const duration = Date.now() - startTime
     logger.apiResponse('GET', '/api/escalations', 200, duration, { count: response.length })
-    return NextResponse.json(response)
+    
+    // Return escalations with pattern detection metadata
+    return NextResponse.json({
+      escalations: response,
+      patterns: patterns.length > 0 ? patterns : undefined,
+    })
   } catch (error) {
     const duration = Date.now() - startTime
     logger.apiError('GET', '/api/escalations', error, 500)

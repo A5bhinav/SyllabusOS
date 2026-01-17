@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useOptimistic, useRef, useEffect, startTransition } from 'react'
+import { useState, useOptimistic, useRef, useEffect, startTransition, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -163,10 +163,11 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     }
   }, [optimisticMessages, isUserAtBottom, isLoadingHistory])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, suggestedText?: string) => {
     e.preventDefault()
+    const messageText = suggestedText || input.trim()
     
-    if (!input.trim() || isLoading) return
+    if (!messageText || isLoading) return
 
     // Check if user is at bottom before submitting
     // If they are, we'll auto-scroll. If not, don't force scroll.
@@ -184,7 +185,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
-      text: input.trim(),
+      text: messageText,
       role: 'user',
       timestamp: new Date(),
     }
@@ -199,7 +200,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
 
     try {
       const response = await sendChatMessage({
-        message: userMessage.text,
+        message: messageText,
         courseId,
         userId,
       })
@@ -223,6 +224,8 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         const withoutUser = prev.filter(msg => msg.id !== userMessage.id)
         return [...withoutUser, userMessage, assistantMessage]
       })
+      
+      // Clear any previous suggested follow-ups by resetting (they'll be generated from the new message)
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to send message. Please try again.'
       setError(errorMsg)
@@ -238,6 +241,52 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Generate suggested follow-up questions based on the last assistant message
+  const suggestedFollowUps = useMemo(() => {
+    if (optimisticMessages.length === 0 || isLoading) return []
+    
+    const lastAssistantMessage = [...optimisticMessages].reverse().find(msg => msg.role === 'assistant')
+    if (!lastAssistantMessage) return []
+    
+    const messageText = lastAssistantMessage.text.toLowerCase()
+    const suggestions: string[] = []
+    
+    // Generate context-aware suggestions
+    if (messageText.includes('midterm') || messageText.includes('final') || messageText.includes('exam')) {
+      suggestions.push('What topics are covered on the exam?')
+      suggestions.push('What is the exam format?')
+      suggestions.push('Can I see sample questions?')
+    } else if (messageText.includes('assignment') || messageText.includes('homework') || messageText.includes('project')) {
+      suggestions.push('When is the due date?')
+      suggestions.push('What are the requirements?')
+      suggestions.push('Where do I submit it?')
+    } else if (messageText.includes('week') || messageText.includes('schedule')) {
+      suggestions.push('What are the topics for this week?')
+      suggestions.push('Are there any readings?')
+      suggestions.push('What assignments are due?')
+    } else if (messageText.includes('grade') || messageText.includes('grading')) {
+      suggestions.push('How is the course graded?')
+      suggestions.push('What is the grading breakdown?')
+      suggestions.push('Can I check my current grade?')
+    } else {
+      // Generic follow-ups
+      suggestions.push('Can you tell me more about that?')
+      suggestions.push('What should I focus on?')
+      suggestions.push('Are there any related topics?')
+    }
+    
+    return suggestions.slice(0, 3) // Return max 3 suggestions
+  }, [optimisticMessages, isLoading])
+
+  function handleSuggestedFollowUp(question: string) {
+    // Create a synthetic event and call handleSubmit with the suggested text
+    const syntheticEvent = {
+      preventDefault: () => {},
+    } as React.FormEvent
+    
+    handleSubmit(syntheticEvent, question)
   }
 
   return (
@@ -262,12 +311,37 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
             </div>
           ) : (
             <>
-              {optimisticMessages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-              ))}
+              {optimisticMessages.map((message, index) => {
+                const isLastAssistant = !isLoading && 
+                  message.role === 'assistant' && 
+                  index === optimisticMessages.length - 1
+                
+                return (
+                  <div key={message.id} className="space-y-2">
+                    <MessageBubble message={message} />
+                    
+                    {/* Show suggested follow-ups after the last assistant message */}
+                    {isLastAssistant && suggestedFollowUps.length > 0 && (
+                      <div className="flex flex-wrap gap-2 ml-2 mt-1">
+                        {suggestedFollowUps.map((suggestion, idx) => (
+                          <Button
+                            key={idx}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-auto py-1.5 px-3"
+                            onClick={() => handleSuggestedFollowUp(suggestion)}
+                          >
+                            {suggestion}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2">
+              <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2 animate-pulse">
                 <LoadingSpinner size="sm" />
                 <span className="text-sm text-muted-foreground">AI is thinking...</span>
               </div>

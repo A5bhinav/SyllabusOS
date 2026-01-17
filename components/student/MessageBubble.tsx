@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { CitationDisplay } from './CitationDisplay'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/hooks/use-toast'
+import { Copy, Check } from 'lucide-react'
 import type { ChatResponse } from '@/types/api'
 
 export interface Message {
@@ -21,8 +25,29 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
+  const { toast } = useToast()
+  const [copied, setCopied] = useState(false)
   const isUser = message.role === 'user'
   const isEscalated = message.agent === 'ESCALATE' || message.escalated
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(message.text)
+      setCopied(true)
+      toast({
+        title: 'Copied!',
+        description: 'Message copied to clipboard',
+      })
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+      toast({
+        title: 'Failed to copy',
+        description: 'Could not copy message to clipboard',
+        variant: 'destructive',
+      })
+    }
+  }
 
   return (
     <div
@@ -37,18 +62,40 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           isUser ? 'items-end' : 'items-start'
         )}
       >
-        <div
-          className={cn(
-            'rounded-lg px-4 py-2.5 shadow-sm',
-            isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground'
-          )}
-        >
-          <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+        <div className="relative group">
+          <div
+            className={cn(
+              'rounded-lg px-4 py-2.5 shadow-sm',
+              isUser
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-foreground'
+            )}
+          >
+            <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+            
+            {!isUser && message.citations && message.citations.length > 0 && (
+              <CitationDisplay citations={message.citations} className="mt-3" />
+            )}
+          </div>
           
-          {!isUser && message.citations && message.citations.length > 0 && (
-            <CitationDisplay citations={message.citations} className="mt-3" />
+          {/* Copy button for AI messages */}
+          {!isUser && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity',
+                'hover:bg-background/80'
+              )}
+              onClick={handleCopy}
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-green-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
           )}
         </div>
 

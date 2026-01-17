@@ -125,11 +125,21 @@ export async function GET(request: NextRequest) {
     // Get unique student IDs to fetch their profiles
     const studentIds = [...new Set((enrollments || []).map((e: any) => e.student_id))]
     
+    // If no enrollments, return empty array
+    if (studentIds.length === 0) {
+      return NextResponse.json([])
+    }
+    
     // Fetch all student profiles at once
-    const { data: studentProfiles } = await supabase
+    const { data: studentProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, name, email')
       .in('id', studentIds)
+
+    // Log if profile fetch failed
+    if (profilesError) {
+      console.error('[Enrollments API] Error fetching profiles:', profilesError)
+    }
 
     // Create a map for quick lookup
     const profileMap = new Map(
@@ -138,14 +148,62 @@ export async function GET(request: NextRequest) {
 
     // Transform response with profile data
     const response = (enrollments || []).map((e: any) => {
-      const profile = profileMap.get(e.student_id) || e.profiles
-      // Use profile name, or fallback to email prefix if name is missing
-      const studentName = profile?.name?.trim() || 
-        (profile?.email ? profile.email.split('@')[0] : null)
+      // Try to get profile from map first (from separate query), 
+      // then fallback to joined profiles data (from original query)
+      // Handle both array and object formats for joined data
+      let profile = profileMap.get(e.student_id)
+      
+      if (!profile) {
+        // Handle joined profiles - could be array or object depending on Supabase join behavior
+        const joinedProfiles = e.profiles
+        if (Array.isArray(joinedProfiles) && joinedProfiles.length > 0) {
+          profile = joinedProfiles[0]
+        } else if (joinedProfiles && typeof joinedProfiles === 'object' && !Array.isArray(joinedProfiles)) {
+          profile = joinedProfiles
+        }
+      }
+
+      // Debug logging if profile not found or name is missing
+      if (!profile) {
+        console.warn('[Enrollments API] Profile not found for student_id:', e.student_id)
+        console.warn('[Enrollments API] Available profile IDs in map:', Array.from(profileMap.keys()))
+        console.warn('[Enrollments API] Enrollment student_id:', e.student_id, 'Type:', typeof e.student_id)
+        console.warn('[Enrollments API] Joined profiles data:', e.profiles)
+      } else {
+        // Log profile data to help debug
+        if (!profile.name || (typeof profile.name === 'string' && profile.name.trim() === '')) {
+          console.warn('[Enrollments API] Profile found but name is empty/null for student_id:', e.student_id)
+          console.warn('[Enrollments API] Profile data:', { 
+            id: profile.id, 
+            name: profile.name, 
+            email: profile.email,
+            nameType: typeof profile.name,
+            nameLength: profile.name?.length 
+          })
+        } else {
+          console.log('[Enrollments API] Profile found with name for student_id:', e.student_id, 'Name:', profile.name)
+        }
+      }
+      
+      // Use profile name, or fallback to email prefix if name is missing or empty
+      // Handle null, undefined, and empty string cases
+      let studentName: string | null = null
+      
+      if (profile) {
+        // Try name first (trimmed)
+        const trimmedName = profile.name?.trim()
+        if (trimmedName && trimmedName.length > 0) {
+          studentName = trimmedName
+        } else if (profile.email) {
+          // Fallback to email prefix
+          studentName = profile.email.split('@')[0]
+        }
+      }
+      
       return {
         id: e.id,
         courseId: e.course_id,
-        courseName: e.courses?.name || null,
+        courseName: Array.isArray(e.courses) ? e.courses[0]?.name : e.courses?.name || null,
         studentId: e.student_id,
         studentName: studentName,
         studentEmail: profile?.email || null,

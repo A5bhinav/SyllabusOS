@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { Plus, MessageSquare, BookOpen } from 'lucide-react'
 import Link from 'next/link'
+import { Announcements } from '@/components/student/Announcements'
 
 interface Course {
   id: string
@@ -243,33 +244,41 @@ export default function StudentHomePage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course) => (
-            <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                      <BookOpen className="h-6 w-6 text-primary" />
+        <>
+          {/* Announcements Section - Show all announcements from enrolled courses */}
+          <div className="mb-8">
+            <Announcements />
+          </div>
+
+          {/* Courses Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => (
+              <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                        <BookOpen className="h-6 w-6 text-primary" />
+                      </div>
                     </div>
-                  </div>
-                  <CardTitle className="text-xl mb-1 line-clamp-2">{course.name}</CardTitle>
-                  <CardDescription>
-                    Course Assistant
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0 mt-auto">
-                  <Button variant="ghost" className="w-full justify-start" asChild>
-                    <div>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Open Chat
-                    </div>
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                    <CardTitle className="text-xl mb-1 line-clamp-2">{course.name}</CardTitle>
+                    <CardDescription>
+                      Course Assistant
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 mt-auto">
+                    <Button variant="ghost" className="w-full justify-start" asChild>
+                      <div>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Open Chat
+                      </div>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

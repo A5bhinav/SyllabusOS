@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChatInterface } from '@/components/student/ChatInterface'
+import { Announcements } from '@/components/student/Announcements'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -150,18 +151,28 @@ export default function StudentChatPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Course Assistant</CardTitle>
-          <CardDescription>
-            Ask questions about your course policies, concepts, and schedules
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChatInterface courseId={courseId} userId={userId} />
-        </CardContent>
-      </Card>
+    <div className="container mx-auto py-8 px-4 max-w-6xl">
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Chat Interface - Takes up 2/3 of the width */}
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">Course Assistant</CardTitle>
+              <CardDescription>
+                Ask questions about your course policies, concepts, and schedules
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChatInterface courseId={courseId} userId={userId} />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Announcements Sidebar - Takes up 1/3 of the width */}
+        <div className="md:col-span-1">
+          <Announcements courseId={courseId} />
+        </div>
+      </div>
     </div>
   )
 }

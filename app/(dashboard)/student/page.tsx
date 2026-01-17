@@ -29,7 +29,7 @@ export default function StudentHomePage() {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 
         if (authError || !user) {
-          router.push('/login')
+          window.location.href = '/login'
           return
         }
 

@@ -97,12 +97,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Read syllabus buffer once (will be reused for course name extraction and processing)
+    const syllabusBuffer = Buffer.from(await syllabusFile.arrayBuffer())
+
     // Create or get course
     let courseId: string = courseIdParam || ''
 
     if (!courseId) {
-      // Create new course
-      const courseName = (formData.get('courseName') as string) || 'New Course'
+      // Extract course name from PDF if not provided
+      let courseName = formData.get('courseName') as string | null
+      
+      if (!courseName) {
+        // Try to extract from PDF
+        logger.info('[Upload API] Extracting course name from PDF...')
+        const { extractCourseName } = await import('@/lib/rag/chunking')
+        courseName = await extractCourseName(syllabusBuffer)
+        logger.info('[Upload API] Extracted course name', { courseName })
+      }
+      
+      // Fallback to default if extraction failed
+      if (!courseName || courseName.trim().length === 0) {
+        courseName = 'New Course'
+      }
       
       // Generate join code
       const { generateJoinCode } = await import('@/lib/utils/join-code')
@@ -191,9 +207,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process PDF syllabus
-    const syllabusBuffer = Buffer.from(await syllabusFile.arrayBuffer())
-    const chunks = await processPDF(syllabusBuffer, courseId)
+    // Parse schedule file first (to potentially use for matching)
+    const scheduleResult = await parseScheduleFile(scheduleFile)
+    
+    if (scheduleResult.errors.length > 0) {
+      logger.warn('[Upload API] Schedule parsing errors', { errors: scheduleResult.errors })
+    }
+
+    // Process PDF syllabus (reuse buffer that was already read)
+    // The processPDF function will try to extract week numbers and topics from PDF content
+    // Also pass schedule entries to allow matching chunks to schedule
+    const scheduleEntries = scheduleResult.entries.map(e => ({
+      weekNumber: e.weekNumber,
+      topic: e.topic || '',
+    }))
+    const chunks = await processPDF(syllabusBuffer, courseId, {
+      scheduleEntries: scheduleEntries,
+    })
+    
+    // Log extraction results
+    const chunksWithWeek = chunks.filter(c => c.weekNumber !== null).length
+    const chunksWithTopic = chunks.filter(c => c.topic !== null).length
+    logger.info('[Upload API] PDF processing complete', {
+      totalChunks: chunks.length,
+      chunksWithWeekNumber: chunksWithWeek,
+      chunksWithTopic: chunksWithTopic,
+    })
 
     // COST CONTROL: Validate before processing embeddings
     const totalCharacters = chunks.reduce((sum, chunk) => sum + (chunk.content?.length || 0), 0)
@@ -248,13 +287,6 @@ export async function POST(request: NextRequest) {
     }))
 
     await storeDocumentsWithEmbeddings(documents)
-
-    // Parse schedule file
-    const scheduleResult = await parseScheduleFile(scheduleFile)
-
-    if (scheduleResult.errors.length > 0) {
-      logger.warn('[Upload API] Schedule parsing errors', { errors: scheduleResult.errors })
-    }
 
     // Store schedule entries
     let scheduleEntriesCount = 0

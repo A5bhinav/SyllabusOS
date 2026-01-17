@@ -59,54 +59,26 @@ export default function LoginPage() {
             });
 
             if (response.ok) {
-              // Re-fetch profile
-              const { data: newProfile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', data.user.id)
-                .single();
-
-              if (newProfile?.role === 'professor') {
-                window.location.href = '/dashboard';
-                return;
-              } else {
-                window.location.href = '/student';
-                return;
-              }
+              // Profile created, redirect to home page which will handle routing
+              window.location.href = '/';
+              return;
             }
           } catch (err) {
             console.error('Failed to create profile:', err);
           }
           
-          // Default to student dashboard if profile creation fails
-          window.location.href = '/student';
+          // Redirect to home page - it will handle routing based on profile
+          window.location.href = '/';
           return;
         }
 
-        // Redirect based on role from database
-        // Check if professor has courses - if not, go to onboarding
-        if (profile.role === 'professor') {
-          // Check if professor has any courses
-          const { data: courses } = await supabase
-            .from('courses')
-            .select('id')
-            .eq('professor_id', data.user.id)
-            .limit(1);
-
-          // If no courses, redirect to onboarding to upload files
-          if (!courses || courses.length === 0) {
-            window.location.href = '/onboarding';
-            return;
-          } else {
-            window.location.href = '/dashboard';
-            return;
-          }
-        } else {
-          window.location.href = '/student';
-          return;
-        }
+        // Redirect to home page - it will automatically redirect based on role
+        // This ensures consistent redirect logic and checks for courses
+        window.location.href = '/';
+        return;
       } else {
-        window.location.href = '/onboarding';
+        // No user data - redirect to home page
+        window.location.href = '/';
         return;
       }
     } catch (err: any) {

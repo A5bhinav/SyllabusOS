@@ -4,24 +4,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-type HomeProps = {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}
-
-export default async function Home({ searchParams }: HomeProps) {
-  const params = await searchParams
-  const code = params.code as string | undefined
-  
-  // If there's an auth code in the URL (from magic link), redirect to callback route
-  if (code) {
-    redirect(`/auth/callback?code=${code}`)
-  }
-
+export default async function Home() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // If user is authenticated, redirect them to the appropriate page based on their role
   if (user) {
     // Get user profile to determine redirect
     const { data: profile } = await supabase
@@ -45,10 +34,9 @@ export default async function Home({ searchParams }: HomeProps) {
       }
     } else if (profile?.role === 'student') {
       redirect('/student')
-    } else {
-      // Profile doesn't exist or role is invalid, stay on home page
-      // User can sign up or log in
     }
+    // If profile doesn't exist or role is invalid, show home page
+    // User can sign up or log in
   }
 
   return (

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { FileUpload } from '@/components/shared/FileUpload'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { LoadDemoButton } from '@/components/shared/LoadDemoButton'
 import { uploadFiles } from '@/lib/api/upload'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
@@ -106,10 +107,35 @@ export default function OnboardingPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold">Course Setup</CardTitle>
           <CardDescription>
-            Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started
+            Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started, or try the demo course
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="border-b pb-6">
+            <h3 className="text-lg font-semibold mb-2">Try Demo Course (UCSC CMPS 5J)</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Load a complete demo course with syllabus, schedule, and announcements. Perfect for testing the system!
+            </p>
+            <LoadDemoButton 
+              onSuccess={(courseId) => {
+                setTimeout(() => {
+                  router.push('/dashboard')
+                }, 1500)
+              }}
+            />
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Upload Your Own Course</h3>
           <FileUpload
             label="Syllabus (PDF)"
             accept=".pdf,application/pdf"
@@ -165,6 +191,7 @@ export default function OnboardingPage() {
               'Upload and Process'
             )}
           </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

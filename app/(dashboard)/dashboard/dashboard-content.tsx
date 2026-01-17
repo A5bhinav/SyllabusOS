@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { AnnouncementDrafts } from '@/components/professor/AnnouncementDrafts'
 import { EscalationQueue } from '@/components/professor/EscalationQueue'
@@ -12,10 +11,7 @@ import { PulseReport } from '@/components/professor/PulseReport'
 import { CourseManagement } from '@/components/professor/CourseManagement'
 import { EnrolledStudents } from '@/components/professor/EnrolledStudents'
 import { triggerConductor } from '@/lib/api/conductor'
-import { getCourses } from '@/lib/api/courses'
-import type { Course } from '@/types/api'
-import Link from 'next/link'
-import { Upload, LogOut, Play, RefreshCw, Copy, Check, BookOpen } from 'lucide-react'
+import { LogOut, Play, RefreshCw } from 'lucide-react'
 
 export default function DashboardContent() {
   const router = useRouter()
@@ -23,9 +19,6 @@ export default function DashboardContent() {
   const [conductorLoading, setConductorLoading] = useState(false)
   const [conductorError, setConductorError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [courses, setCourses] = useState<Course[]>([])
-  const [loadingCourses, setLoadingCourses] = useState(true)
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -74,32 +67,6 @@ export default function DashboardContent() {
   const handleRefresh = () => {
     setRefreshing(true)
     window.location.reload()
-  }
-
-  useEffect(() => {
-    loadCourses()
-  }, [])
-
-  async function loadCourses() {
-    try {
-      setLoadingCourses(true)
-      const data = await getCourses()
-      setCourses(data)
-    } catch (err) {
-      console.error('Error loading courses:', err)
-    } finally {
-      setLoadingCourses(false)
-    }
-  }
-
-  async function handleCopyCode(code: string) {
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopiedCode(code)
-      setTimeout(() => setCopiedCode(null), 2000)
-    } catch (err) {
-      console.error('Failed to copy code:', err)
-    }
   }
 
   return (
@@ -151,102 +118,6 @@ export default function DashboardContent() {
           {conductorError}
         </div>
       )}
-
-      <div className="mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Course Setup</CardTitle>
-            <CardDescription>
-              {courses.length > 0 
-                ? `Manage your ${courses.length} course${courses.length > 1 ? 's' : ''}` 
-                : 'Upload your syllabus and schedule to get started'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingCourses ? (
-              <div className="flex items-center justify-center py-8">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : courses.length > 0 ? (
-              <div className="space-y-4">
-                {courses.map((course) => {
-                  const courseCode = course.joinCode || 'N/A'
-                  const isCopied = copiedCode === courseCode
-                  
-                  return (
-                    <div
-                      key={course.id}
-                      className="rounded-lg border p-4 space-y-3"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="font-semibold text-lg">{course.name}</h3>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Course ID: {course.id.substring(0, 8)}...
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {course.joinCode && (
-                        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground mb-1">
-                              Join Code (Share with students to enroll)
-                            </p>
-                            <p className="font-mono font-bold text-lg tracking-wider">
-                              {course.joinCode}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCopyCode(course.joinCode!)}
-                            className="flex items-center gap-2"
-                          >
-                            {isCopied ? (
-                              <>
-                                <Check className="h-4 w-4" />
-                                Copied!
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-4 w-4" />
-                                Copy
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                      
-                      <Link href="/onboarding">
-                        <Button variant="outline" className="w-full" size="sm">
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Additional Course Files
-                        </Button>
-                      </Link>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No courses yet. Upload your syllabus and schedule to get started.
-                </p>
-                <Link href="/onboarding">
-                  <Button className="w-full" variant="outline">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Course Files
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         <AnnouncementDrafts />

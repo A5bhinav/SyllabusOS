@@ -122,16 +122,36 @@ export async function GET(request: NextRequest) {
       throw enrollmentsError
     }
 
-    // Transform response
-    const response = (enrollments || []).map((e: any) => ({
-      id: e.id,
-      courseId: e.course_id,
-      courseName: e.courses?.name || null,
-      studentId: e.student_id,
-      studentName: e.profiles?.name || null,
-      studentEmail: e.profiles?.email || null,
-      enrolledAt: e.enrolled_at,
-    }))
+    // Get unique student IDs to fetch their profiles
+    const studentIds = [...new Set((enrollments || []).map((e: any) => e.student_id))]
+    
+    // Fetch all student profiles at once
+    const { data: studentProfiles } = await supabase
+      .from('profiles')
+      .select('id, name, email')
+      .in('id', studentIds)
+
+    // Create a map for quick lookup
+    const profileMap = new Map(
+      (studentProfiles || []).map((p: any) => [p.id, p])
+    )
+
+    // Transform response with profile data
+    const response = (enrollments || []).map((e: any) => {
+      const profile = profileMap.get(e.student_id) || e.profiles
+      // Use profile name, or fallback to email prefix if name is missing
+      const studentName = profile?.name?.trim() || 
+        (profile?.email ? profile.email.split('@')[0] : null)
+      return {
+        id: e.id,
+        courseId: e.course_id,
+        courseName: e.courses?.name || null,
+        studentId: e.student_id,
+        studentName: studentName,
+        studentEmail: profile?.email || null,
+        enrolledAt: e.enrolled_at,
+      }
+    })
 
     return NextResponse.json(response)
   } catch (error) {

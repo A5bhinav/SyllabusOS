@@ -6,6 +6,7 @@ import { parseScheduleFile } from '@/lib/utils/schedule-parser'
 import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError } from '@/lib/utils/api-errors'
 import { getDemoModeInfo } from '@/lib/utils/demo-mode'
 import { logger } from '@/lib/utils/logger'
+import { validateUploadSize, estimateEmbeddingCost, formatCost } from '@/lib/utils/cost-control'
 import type { UploadResponse } from '@/types/api'
 
 export const runtime = 'nodejs'
@@ -96,12 +97,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Read syllabus buffer once (will be reused for course name extraction and processing)
+    const syllabusBuffer = Buffer.from(await syllabusFile.arrayBuffer())
+
     // Create or get course
     let courseId: string = courseIdParam || ''
 
     if (!courseId) {
-      // Create new course
-      const courseName = (formData.get('courseName') as string) || 'New Course'
+      // Extract course name from PDF if not provided
+      let courseName = formData.get('courseName') as string | null
+      
+      if (!courseName) {
+        // Try to extract from PDF
+        logger.info('[Upload API] Extracting course name from PDF...')
+        const { extractCourseName } = await import('@/lib/rag/chunking')
+        courseName = await extractCourseName(syllabusBuffer)
+        logger.info('[Upload API] Extracted course name', { courseName })
+      }
+      
+      // Fallback to default if extraction failed
+      if (!courseName || courseName.trim().length === 0) {
+        courseName = 'New Course'
+      }
       
       // Generate join code
       const { generateJoinCode } = await import('@/lib/utils/join-code')
@@ -190,9 +207,72 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process PDF syllabus
-    const syllabusBuffer = Buffer.from(await syllabusFile.arrayBuffer())
-    const chunks = await processPDF(syllabusBuffer, courseId)
+    // Parse schedule file first (to potentially use for matching)
+    const scheduleResult = await parseScheduleFile(scheduleFile)
+    
+    if (scheduleResult.errors.length > 0) {
+      logger.warn('[Upload API] Schedule parsing errors', { errors: scheduleResult.errors })
+    }
+
+    // Process PDF syllabus (reuse buffer that was already read)
+    // The processPDF function will try to extract week numbers and topics from PDF content
+    // Also pass schedule entries to allow matching chunks to schedule
+    const scheduleEntries = scheduleResult.entries.map(e => ({
+      weekNumber: e.weekNumber,
+      topic: e.topic || '',
+    }))
+    const chunks = await processPDF(syllabusBuffer, courseId, {
+      scheduleEntries: scheduleEntries,
+    })
+    
+    // Log extraction results
+    const chunksWithWeek = chunks.filter(c => c.weekNumber !== null).length
+    const chunksWithTopic = chunks.filter(c => c.topic !== null).length
+    logger.info('[Upload API] PDF processing complete', {
+      totalChunks: chunks.length,
+      chunksWithWeekNumber: chunksWithWeek,
+      chunksWithTopic: chunksWithTopic,
+    })
+
+    // COST CONTROL: Validate before processing embeddings
+    const totalCharacters = chunks.reduce((sum, chunk) => sum + (chunk.content?.length || 0), 0)
+    const validation = validateUploadSize(chunks.length, totalCharacters)
+    
+    if (!validation.valid) {
+      logger.warn('[Upload API] Upload rejected due to size limits', {
+        chunkCount: chunks.length,
+        characterCount: totalCharacters,
+      })
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/upload', 400, duration)
+      return NextResponse.json(
+        {
+          error: validation.error || 'Upload exceeds size limits',
+          chunkCount: chunks.length,
+          characterCount: totalCharacters,
+        },
+        { status: 400 }
+      )
+    }
+    
+    if (validation.warning) {
+      logger.warn('[Upload API] Large upload warning', {
+        warning: validation.warning,
+        chunkCount: chunks.length,
+        characterCount: totalCharacters,
+      })
+    }
+    
+    // Log cost estimate before processing
+    const mockMode = process.env.MOCK_MODE === 'true'
+    if (!mockMode) {
+      const estimatedCost = estimateEmbeddingCost(totalCharacters)
+      logger.info('[Upload API] Cost estimate', {
+        chunkCount: chunks.length,
+        characterCount: totalCharacters,
+        estimatedCost: formatCost(estimatedCost),
+      })
+    }
 
     // Store chunks with embeddings
     const documents = chunks.map(chunk => ({
@@ -207,13 +287,6 @@ export async function POST(request: NextRequest) {
     }))
 
     await storeDocumentsWithEmbeddings(documents)
-
-    // Parse schedule file
-    const scheduleResult = await parseScheduleFile(scheduleFile)
-
-    if (scheduleResult.errors.length > 0) {
-      logger.warn('[Upload API] Schedule parsing errors', { errors: scheduleResult.errors })
-    }
 
     // Store schedule entries
     let scheduleEntriesCount = 0

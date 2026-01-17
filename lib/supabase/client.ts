@@ -8,9 +8,9 @@ export function createClient() {
     throw new Error('Missing Supabase environment variables')
   }
 
-  return createBrowserClient(
-    supabaseUrl,
-    supabaseAnonKey
-  )
+  // createBrowserClient from @supabase/ssr automatically handles cookies
+  // It stores PKCE code verifiers and other auth state in cookies
+  // This ensures the code verifier is available when the callback route exchanges the code
+  return createBrowserClient(supabaseUrl, supabaseAnonKey)
 }
 

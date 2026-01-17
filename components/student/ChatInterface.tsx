@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useOptimistic, useRef, useEffect } from 'react'
+import { useState, useOptimistic, useRef, useEffect, startTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -62,9 +62,10 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
       timestamp: new Date(),
     }
 
-    // Add user message optimistically
-    addOptimisticMessage(userMessage)
-    setMessages((prev) => [...prev, userMessage])
+    // Add user message optimistically (wrapped in startTransition for React 19)
+    startTransition(() => {
+      addOptimisticMessage(userMessage)
+    })
     setInput('')
     setError(null)
     setIsLoading(true)
@@ -87,13 +88,18 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         escalationId: response.escalationId,
       }
 
-      // Update actual messages and add optimistic update
-      setMessages((prev) => [...prev, assistantMessage])
-      addOptimisticMessage(assistantMessage)
+      // Update actual messages state with both user and assistant messages
+      // This will sync with useOptimistic and resolve the optimistic user message
+      // The user message is already in optimistic state, so we only add it if not present
+      setMessages((prev) => {
+        // Only add user message if it's not already there
+        const withoutUser = prev.filter(msg => msg.id !== userMessage.id)
+        return [...withoutUser, userMessage, assistantMessage]
+      })
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to send message. Please try again.')
       
-      // Remove the user message on error
+      // Remove the optimistic user message on error by reverting messages state
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id))
     } finally {
       setIsLoading(false)

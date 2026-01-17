@@ -56,6 +56,7 @@ export default function SignupPage() {
             name,
             role,
           },
+          emailRedirectTo: undefined, // Don't redirect after email confirmation
         },
       });
 
@@ -64,6 +65,65 @@ export default function SignupPage() {
       }
 
       if (authData.user) {
+        // Auto-confirm email using API route (bypasses email confirmation requirement)
+        // This is necessary if email confirmation is enabled in Supabase
+        try {
+          const confirmResponse = await fetch('/api/auth/auto-confirm', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: authData.user.id,
+            }),
+          });
+
+          if (confirmResponse.ok) {
+            console.log('Email auto-confirmed successfully');
+          } else {
+            console.warn('Failed to auto-confirm email, user may need to confirm manually');
+          }
+        } catch (confirmError) {
+          console.warn('Error auto-confirming email:', confirmError);
+          // Continue anyway - user can manually confirm if needed
+        }
+
+        // If no session was returned (email confirmation was required), sign in the user
+        // This ensures the user is automatically logged in after signup
+        if (!authData.session) {
+          console.log('No session returned, waiting for email confirmation then signing in...');
+          
+          // Wait a moment for email confirmation to propagate
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Sign in the user to establish a session
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (signInError) {
+            console.error('Failed to sign in after signup:', signInError);
+            // If sign in fails, it might be because email is still not confirmed
+            // Try one more time after a longer wait
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const { data: retrySignIn, error: retryError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            
+            if (retryError) {
+              console.error('Retry sign in also failed:', retryError);
+              // Continue with redirect anyway - user can log in manually
+            } else if (retrySignIn.session) {
+              console.log('User signed in successfully after retry');
+            }
+          } else if (signInData.session) {
+            console.log('User signed in successfully after signup');
+          }
+        } else {
+          console.log('Session already established from signup');
+        }
         // Profile should be auto-created by database trigger
         // Wait for trigger to execute and poll a few times
         let profileExists = false;
@@ -142,12 +202,33 @@ export default function SignupPage() {
         // Use database role if available, otherwise fall back to form role
         const userRole = profileData?.role || role;
 
-        // Redirect based on actual database role
-        // Professors go to onboarding first to upload course files
+        // Verify we have a session before redirecting
+        // Check current session to ensure user is logged in
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          // If still no session, try one final sign in
+          console.log('No session found, attempting final sign in...');
+          const { data: finalSignIn, error: finalError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (finalError) {
+            console.error('Final sign in attempt failed:', finalError);
+            setError('Account created but failed to log in automatically. Please log in manually.');
+            return;
+          }
+        }
+
+        // Redirect directly to the appropriate page based on role
+        // Use window.location.href for a full page reload to ensure session is recognized
         if (userRole === 'professor') {
-          router.push('/onboarding');
+          // Professors go to onboarding first (to upload course files)
+          window.location.href = '/onboarding';
         } else {
-          router.push('/student');
+          // Students go to student dashboard
+          window.location.href = '/student';
         }
       }
     } catch (err: any) {

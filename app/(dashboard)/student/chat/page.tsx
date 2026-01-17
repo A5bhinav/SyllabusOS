@@ -44,19 +44,25 @@ export default function StudentChatPage() {
         // Get course ID - for students, we might need to get it from enrollments
         // For now, we'll try to get a course from the database
         // In production, you'd have an enrollments table
-        const { data: courses, error: courseError } = await supabase
+        const { data: course, error: courseError } = await supabase
           .from('courses')
           .select('id')
           .limit(1)
-          .single()
+          .maybeSingle()
 
-        if (courseError || !courses) {
+        if (courseError) {
+          setError('Failed to load course information. Please try again.')
+          setLoading(false)
+          return
+        }
+
+        if (!course) {
           setError('No course found. Please contact your professor to set up a course.')
           setLoading(false)
           return
         }
 
-        setCourseId(courses.id)
+        setCourseId(course.id)
       } catch (err: any) {
         setError(err.message || 'Failed to load chat. Please try again.')
       } finally {

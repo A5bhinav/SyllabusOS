@@ -15,6 +15,7 @@ export interface Course {
   id: string
   name: string
   professor_id: string
+  join_code: string | null
   created_at: string
   updated_at: string
 }

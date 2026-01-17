@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
           id,
           name,
           professor_id,
+          join_code,
           created_at,
           updated_at,
           profiles!courses_professor_id_fkey (
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
         professorId: c.professor_id,
         professorName: c.profiles?.name || null,
         professorEmail: c.profiles?.email || null,
+        joinCode: c.join_code || null,
         createdAt: c.created_at,
         updatedAt: c.updated_at,
         isEnrolled: true, // Professors are always "enrolled" in their own courses
@@ -92,6 +94,7 @@ export async function GET(request: NextRequest) {
           id,
           name,
           professor_id,
+          join_code,
           created_at,
           updated_at,
           profiles!courses_professor_id_fkey (
@@ -125,6 +128,7 @@ export async function GET(request: NextRequest) {
         professorId: c.professor_id,
         professorName: c.profiles?.name || null,
         professorEmail: c.profiles?.email || null,
+        joinCode: c.join_code || null,
         createdAt: c.created_at,
         updatedAt: c.updated_at,
         isEnrolled: enrolledCourseIds.has(c.id),

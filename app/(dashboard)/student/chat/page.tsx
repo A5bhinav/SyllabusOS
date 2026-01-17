@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChatInterface } from '@/components/student/ChatInterface'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function StudentChatPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [courseId, setCourseId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -41,28 +42,30 @@ export default function StudentChatPage() {
           return
         }
 
-        // Get course ID - for students, we might need to get it from enrollments
-        // For now, we'll try to get a course from the database
-        // In production, you'd have an enrollments table
-        const { data: course, error: courseError } = await supabase
-          .from('courses')
-          .select('id')
-          .limit(1)
-          .maybeSingle()
+        // Get course ID from URL query params if provided, otherwise get from student's courses
+        const courseIdParam = searchParams.get('courseId')
 
-        if (courseError) {
-          setError('Failed to load course information. Please try again.')
-          setLoading(false)
-          return
+        if (courseIdParam) {
+          // Course ID provided in URL
+          setCourseId(courseIdParam)
+        } else {
+          // Get course from student's recent courses (via chat_logs)
+          const { data: chatLogs } = await supabase
+            .from('chat_logs')
+            .select('course_id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (chatLogs?.course_id) {
+            setCourseId(chatLogs.course_id)
+          } else {
+            // No course found - redirect to student home to select a course
+            router.push('/student')
+            return
+          }
         }
-
-        if (!course) {
-          setError('No course found. Please contact your professor to set up a course.')
-          setLoading(false)
-          return
-        }
-
-        setCourseId(course.id)
       } catch (err: any) {
         setError(err.message || 'Failed to load chat. Please try again.')
       } finally {
@@ -71,7 +74,7 @@ export default function StudentChatPage() {
     }
 
     loadUserData()
-  }, [router])
+  }, [router, searchParams])
 
   if (loading) {
     return (

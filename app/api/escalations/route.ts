@@ -229,7 +229,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify course belongs to this professor
-    if (escalation.courses.professor_id !== user.id) {
+    const course = Array.isArray(escalation.courses) 
+      ? escalation.courses[0] 
+      : escalation.courses
+    
+    if (!course || course.professor_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden - cannot update escalation for this course' },
         { status: 403 }

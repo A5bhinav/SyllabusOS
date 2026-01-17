@@ -8,9 +8,10 @@ import type { Announcement, UpdateAnnouncementRequest } from '@/types/api'
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: announcementId } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -40,8 +41,6 @@ export async function PUT(
       )
     }
 
-    const announcementId = params.id
-
     if (!announcementId) {
       return NextResponse.json(
         { error: 'Announcement ID is required' },
@@ -70,7 +69,11 @@ export async function PUT(
     }
 
     // Verify course belongs to this professor
-    if (existingAnnouncement.courses.professor_id !== user.id) {
+    const course = Array.isArray(existingAnnouncement.courses) 
+      ? existingAnnouncement.courses[0] 
+      : existingAnnouncement.courses
+    
+    if (!course || course.professor_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden - cannot update announcement for this course' },
         { status: 403 }
@@ -171,9 +174,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: announcementId } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -203,8 +207,6 @@ export async function DELETE(
       )
     }
 
-    const announcementId = params.id
-
     if (!announcementId) {
       return NextResponse.json(
         { error: 'Announcement ID is required' },
@@ -233,7 +235,11 @@ export async function DELETE(
     }
 
     // Verify course belongs to this professor
-    if (existingAnnouncement.courses.professor_id !== user.id) {
+    const courseForDelete = Array.isArray(existingAnnouncement.courses) 
+      ? existingAnnouncement.courses[0] 
+      : existingAnnouncement.courses
+    
+    if (!courseForDelete || courseForDelete.professor_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden - cannot delete announcement for this course' },
         { status: 403 }

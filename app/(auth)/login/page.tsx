@@ -99,7 +99,7 @@ export default function LoginPage() {
             router.push('/dashboard');
           }
         } else {
-          router.push('/student/chat');
+          router.push('/student');
         }
       } else {
         router.push('/onboarding');

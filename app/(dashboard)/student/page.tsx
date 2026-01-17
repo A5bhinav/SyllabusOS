@@ -45,32 +45,35 @@ export default function StudentHomePage() {
           return
         }
 
-        // Get courses that the student has interacted with (via chat_logs)
-        // This gives us a list of courses the student is enrolled in
-        const { data: chatLogs } = await supabase
-          .from('chat_logs')
-          .select('course_id')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+        // Get courses from enrollments table
+        const { data: enrollments, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select(`
+            course_id,
+            courses!inner (
+              id,
+              name,
+              professor_id,
+              created_at
+            )
+          `)
+          .eq('student_id', user.id)
 
-        // Get unique course IDs
-        const courseIds = [...new Set(chatLogs?.map(log => log.course_id) || [])]
+        if (enrollmentsError) {
+          throw enrollmentsError
+        }
 
-        if (courseIds.length > 0) {
-          // Fetch course details for courses the student has interacted with
-          const { data: enrolledCourses, error: coursesError } = await supabase
-            .from('courses')
-            .select('id, name, professor_id, created_at')
-            .in('id', courseIds)
-            .order('created_at', { ascending: false })
-
-          if (coursesError) {
-            throw coursesError
-          }
-
-          setCourses(enrolledCourses || [])
+        if (enrollments && enrollments.length > 0) {
+          // Transform enrollment data to course format
+          const enrolledCourses = enrollments.map((e: any) => ({
+            id: e.courses.id,
+            name: e.courses.name,
+            professor_id: e.courses.professor_id,
+            created_at: e.courses.created_at,
+          }))
+          setCourses(enrolledCourses)
         } else {
-          // No courses found - student hasn't interacted with any courses yet
+          // No enrollments found
           setCourses([])
         }
       } catch (err: any) {
@@ -127,7 +130,7 @@ export default function StudentHomePage() {
                 </Link>
               </Button>
               <Button asChild>
-                <Link href="/student/chat">
+                <Link href="/student/browse">
                   <Plus className="h-4 w-4 mr-2" />
                   Browse Courses
                 </Link>

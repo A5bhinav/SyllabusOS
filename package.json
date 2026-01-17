@@ -21,7 +21,10 @@
   },
   "homepage": "https://github.com/A5bhinav/SyllabusOS#readme",
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@langchain/google-genai": "^2.1.8",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "@types/node": "^25.0.8",
@@ -37,9 +40,11 @@
     "pdf-parse": "^2.4.5",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-hook-form": "^7.71.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.23",

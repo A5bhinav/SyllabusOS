@@ -69,7 +69,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         
         // Scroll to bottom after loading history
         setTimeout(() => {
-          if (messagesEndRef.current) {
+    if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'auto' })
             setIsUserAtBottom(true)
           }
@@ -214,15 +214,15 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
           ) : (
             <>
               {optimisticMessages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+              <MessageBubble key={message.id} message={message} />
               ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2">
-                    <LoadingSpinner size="sm" />
-                    <span className="text-sm text-muted-foreground">AI is thinking...</span>
-                  </div>
-                </div>
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2">
+                <LoadingSpinner size="sm" />
+                <span className="text-sm text-muted-foreground">AI is thinking...</span>
+              </div>
+            </div>
               )}
             </>
           )}

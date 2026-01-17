@@ -2,17 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getAnnouncements } from '@/lib/api/announcements'
 import type { Announcement } from '@/types/api'
-import { Calendar, Megaphone } from 'lucide-react'
+import { Calendar, Megaphone, ArrowRight } from 'lucide-react'
 import { format } from 'date-fns'
+import Link from 'next/link'
 
 interface AnnouncementsProps {
   courseId?: string // Optional: filter by course ID
+  showOnlyLatest?: boolean // If true, only show the most recent week
+  limit?: number // Limit number of announcements to show
 }
 
-export function Announcements({ courseId }: AnnouncementsProps) {
+export function Announcements({ courseId, showOnlyLatest = false, limit }: AnnouncementsProps) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +46,7 @@ export function Announcements({ courseId }: AnnouncementsProps) {
       // Students only see published announcements (API filters this, but double-check)
       const published = data.filter((a: Announcement) => a.status === 'published')
       // Sort by week number (descending) and then by published date (descending)
+      // Most recent weeks first
       published.sort((a: Announcement, b: Announcement) => {
         if (b.weekNumber !== a.weekNumber) {
           return b.weekNumber - a.weekNumber
@@ -50,7 +55,17 @@ export function Announcements({ courseId }: AnnouncementsProps) {
         const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
         return dateB - dateA
       })
-      setAnnouncements(published)
+      
+      // Apply limit if specified
+      let filtered = published
+      if (showOnlyLatest && published.length > 0) {
+        // Show only the most recent week
+        filtered = [published[0]]
+      } else if (limit && limit > 0) {
+        filtered = published.slice(0, limit)
+      }
+      
+      setAnnouncements(filtered)
     } catch (err) {
       console.error('Error loading announcements:', err)
       setError('Failed to load announcements')
@@ -81,11 +96,23 @@ export function Announcements({ courseId }: AnnouncementsProps) {
   return (
     <Card>
       <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
         <CardTitle className="flex items-center gap-2">
           <Megaphone className="h-5 w-5" />
           Announcements
         </CardTitle>
         <CardDescription>Important updates from your professor</CardDescription>
+          </div>
+          {showOnlyLatest && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/student/announcements">
+                View All
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {error && (

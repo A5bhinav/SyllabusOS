@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     // Route query using AgentRouter
     let routingDecision
     try {
-      const router = getAgentRouter()
+    const router = getAgentRouter()
       routingDecision = await router.classifyQuery(message)
     } catch (error) {
       logger.error('[Chat API] Error in router classification:', error)
@@ -125,81 +125,81 @@ export async function POST(request: NextRequest) {
 
     // Route to appropriate agent handler
     try {
-      switch (routingDecision.route) {
-        case 'POLICY': {
-          const agent = getSyllabusAgent()
-          const result = await agent.processQuery(message, courseId)
-          
-          // If agent says to escalate, create escalation
-          if (result.shouldEscalate) {
+    switch (routingDecision.route) {
+      case 'POLICY': {
+        const agent = getSyllabusAgent()
+        const result = await agent.processQuery(message, courseId)
+        
+        // If agent says to escalate, create escalation
+        if (result.shouldEscalate) {
             try {
-              const escalationHandler = getEscalationHandler()
-              const escalation = await escalationHandler.createEscalation(
-                message,
-                courseId,
-                userId,
-                'POLICY'
-              )
-              escalationId = escalation.escalationId
+          const escalationHandler = getEscalationHandler()
+          const escalation = await escalationHandler.createEscalation(
+            message,
+            courseId,
+            userId,
+            'POLICY'
+          )
+          escalationId = escalation.escalationId
             } catch (escalationError) {
               logger.error('[Chat API] Error creating escalation:', escalationError)
               // Continue even if escalation fails
             }
-          }
-
-          agentResponse = {
-            response: result.response,
-            citations: result.citations,
-            shouldEscalate: result.shouldEscalate,
-          }
-          break
         }
 
-        case 'CONCEPT': {
-          const agent = getConceptAgent()
-          const result = await agent.processQuery(message, courseId)
-          
-          // If agent says to escalate, create escalation
-          if (result.shouldEscalate) {
+        agentResponse = {
+          response: result.response,
+          citations: result.citations,
+          shouldEscalate: result.shouldEscalate,
+        }
+        break
+      }
+
+      case 'CONCEPT': {
+        const agent = getConceptAgent()
+        const result = await agent.processQuery(message, courseId)
+        
+        // If agent says to escalate, create escalation
+        if (result.shouldEscalate) {
             try {
-              const escalationHandler = getEscalationHandler()
-              const escalation = await escalationHandler.createEscalation(
-                message,
-                courseId,
-                userId,
-                'CONCEPT'
-              )
-              escalationId = escalation.escalationId
+          const escalationHandler = getEscalationHandler()
+          const escalation = await escalationHandler.createEscalation(
+            message,
+            courseId,
+            userId,
+            'CONCEPT'
+          )
+          escalationId = escalation.escalationId
             } catch (escalationError) {
               logger.error('[Chat API] Error creating escalation:', escalationError)
               // Continue even if escalation fails
             }
-          }
-
-          agentResponse = {
-            response: result.response,
-            citations: result.citations,
-            shouldEscalate: result.shouldEscalate,
-          }
-          break
         }
 
-        case 'ESCALATE': {
-          // Direct escalation - create escalation entry
+        agentResponse = {
+          response: result.response,
+          citations: result.citations,
+          shouldEscalate: result.shouldEscalate,
+        }
+        break
+      }
+
+      case 'ESCALATE': {
+        // Direct escalation - create escalation entry
           try {
-            const escalationHandler = getEscalationHandler()
-            const escalation = await escalationHandler.createEscalation(
-              message,
-              courseId,
-              userId,
-              routingDecision.route
-            )
-            escalationId = escalation.escalationId
+        const escalationHandler = getEscalationHandler()
+        const escalation = await escalationHandler.createEscalation(
+          message,
+          courseId,
+          userId,
+          routingDecision.route
+        )
+        escalationId = escalation.escalationId
 
-            agentResponse = {
-              response: escalation.message,
-              citations: [],
-              shouldEscalate: true,
+        agentResponse = {
+          response: escalation.message,
+          citations: [],
+          shouldEscalate: true,
             }
           } catch (escalationError) {
             logger.error('[Chat API] Error creating escalation:', escalationError)
@@ -209,17 +209,17 @@ export async function POST(request: NextRequest) {
               citations: [],
               shouldEscalate: true,
             }
-          }
-          break
         }
+        break
+      }
 
-        default:
-          // Should not reach here, but handle gracefully
-          const duration = Date.now() - startTime
-          logger.apiError('POST', '/api/chat', new Error('Invalid routing decision'), 500)
-          return createErrorResponse(
-            new Error('Invalid routing decision'),
-            'Internal server error'
+      default:
+        // Should not reach here, but handle gracefully
+        const duration = Date.now() - startTime
+        logger.apiError('POST', '/api/chat', new Error('Invalid routing decision'), 500)
+        return createErrorResponse(
+          new Error('Invalid routing decision'),
+          'Internal server error'
           )
       }
     } catch (agentError) {
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse(
         agentError instanceof Error ? agentError : new Error('Failed to process query'),
         'Failed to process your question. Please try again.'
-      )
+        )
     }
 
     // Log conversation to chat_logs table

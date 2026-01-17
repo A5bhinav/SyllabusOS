@@ -7,6 +7,7 @@ import { ChatInterface } from '@/components/student/ChatInterface'
 import { Announcements } from '@/components/student/Announcements'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { StudentNav } from '@/components/student/StudentNav'
 
 export default function StudentChatPage() {
   const router = useRouter()
@@ -141,46 +142,57 @@ export default function StudentChatPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <LoadingSpinner size="lg" />
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <LoadingSpinner size="lg" />
+            </CardContent>
+          </Card>
+        </div>
+      </>
     )
   }
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Error</CardTitle>
+              <CardDescription>{error}</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </>
     )
   }
 
   if (!courseId || !userId) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Unable to Load Chat</CardTitle>
-            <CardDescription>
-              Unable to determine your course. Please contact your professor.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Unable to Load Chat</CardTitle>
+              <CardDescription>
+                Unable to determine your course. Please contact your professor.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
+    <>
+      <StudentNav />
+      <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="grid gap-6 md:grid-cols-3">
         {/* Chat Interface - Takes up 2/3 of the width */}
         <div className="md:col-span-2">
@@ -202,6 +214,7 @@ export default function StudentChatPage() {
           <Announcements courseId={courseId} />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

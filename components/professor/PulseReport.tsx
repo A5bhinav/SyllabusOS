@@ -62,11 +62,39 @@ export function PulseReport() {
     )
   }
 
+  // Prepare data for charts
+  const barChartData = pulseData.topConfusions.slice(0, 5).map((confusion) => ({
+    name: confusion.topic.length > 20 ? confusion.topic.substring(0, 20) + '...' : confusion.topic,
+    fullName: confusion.topic,
+    queries: confusion.count,
+  }))
+
+  const lineChartData =
+    pulseData.dailyTrends?.map((trend) => ({
+      date: format(new Date(trend.date), 'MMM d'),
+      fullDate: trend.date,
+      queries: trend.count,
+    })) || []
+
+  const pieChartData = pulseData.queryDistribution
+    ? [
+        { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
+        { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
+        { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b' },
+      ].filter((item) => item.value > 0)
+    : []
+
+  const metrics = pulseData.metrics || {
+    totalQueriesToday: 0,
+    escalationsPending: 0,
+    avgResponseTime: 0,
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Pulse Report</CardTitle>
-        <CardDescription>Insights into student questions and confusions</CardDescription>
+        <CardDescription>Visual analytics dashboard for student questions and activity</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -124,7 +152,12 @@ export function PulseReport() {
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Total Queries (All Time)</span>
               </div>
-              <p className="text-2xl font-bold">{pulseData.totalQueries}</p>
+              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{pulseData.totalQueries}</p>
+              {metrics.totalQueriesToday > 0 && (
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  {metrics.totalQueriesToday} today
+                </p>
+              )}
             </div>
             
             <div className="rounded-lg border p-4">
@@ -132,7 +165,86 @@ export function PulseReport() {
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Total Escalations</span>
               </div>
-              <p className="text-2xl font-bold">{pulseData.escalationCount}</p>
+              {barChartData.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] rounded-lg border bg-muted/50">
+                  <p className="text-sm text-muted-foreground">
+                    No data available yet. Student questions will appear here once they start asking.
+                  </p>
+                </div>
+              ) : (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="name"
+                        className="text-xs"
+                        tick={{ fill: 'currentColor' }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis className="text-xs" tick={{ fill: 'currentColor' }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                        }}
+                        formatter={(value: number | undefined) => [`${value ?? 0} queries`, 'Queries']}
+                        labelFormatter={(label) => {
+                          const data = barChartData.find((d) => d.name === label)
+                          return data?.fullName || label
+                        }}
+                      />
+                      <Bar dataKey="queries" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            {/* Pie Chart - Query Distribution */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-semibold text-sm">Query Distribution</h4>
+              </div>
+              {pieChartData.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] rounded-lg border bg-muted/50">
+                  <p className="text-sm text-muted-foreground">No query data available.</p>
+                </div>
+              ) : (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                        }}
+                        formatter={(value: number | undefined) => [`${value ?? 0} queries`, 'Count']}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </div>
 

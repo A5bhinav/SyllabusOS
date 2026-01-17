@@ -8,9 +8,10 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: enrollmentId } = await params
     const supabase = await createClient()
 
     // Authenticate user
@@ -40,8 +41,6 @@ export async function DELETE(
       )
     }
 
-    const enrollmentId = params.id
-
     if (!enrollmentId) {
       return NextResponse.json(
         { error: 'Enrollment ID is required' },
@@ -70,7 +69,11 @@ export async function DELETE(
     }
 
     // Verify course belongs to this professor
-    if (enrollment.courses.professor_id !== user.id) {
+    const course = Array.isArray(enrollment.courses) 
+      ? enrollment.courses[0] 
+      : enrollment.courses
+    
+    if (!course || course.professor_id !== user.id) {
       return NextResponse.json(
         { error: 'Forbidden - cannot remove enrollment for this course' },
         { status: 403 }

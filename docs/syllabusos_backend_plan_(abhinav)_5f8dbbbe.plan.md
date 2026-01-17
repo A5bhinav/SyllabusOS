@@ -11,10 +11,15 @@ todos:
     dependencies:
       - db-setup
   - id: rag-infrastructure
-    content: "Implement RAG infrastructure: vector-store.ts, chunking.ts (PDF parsing with metadata), and retrieval.ts with similarity search."
+    content: "Implement RAG infrastructure: vector-store.ts, chunking.ts (PDF parsing with metadata), and retrieval.ts with similarity search. Add content type categorization (policy/concept) during chunking using keyword analysis."
     status: pending
     dependencies:
       - supabase-client
+  - id: metadata-filtering
+    content: "Implement metadata filtering in chunking.ts to categorize chunks as 'policy' or 'concept' based on content analysis. Update syllabus-agent.ts and concept-agent.ts to filter retrieval by contentType metadata."
+    status: pending
+    dependencies:
+      - rag-infrastructure
   - id: upload-api
     content: Create /api/upload route to handle PDF syllabus and CSV schedule parsing, chunking, and storage in database.
     status: pending
@@ -332,9 +337,11 @@ Array<{
 - Create `lib/rag/chunking.ts` - PDF parsing and chunking logic
 - Extract page numbers for citations
 - Preserve metadata (week, topic)
+- **Implement Content Type Categorization**: Add `categorizeChunk()` function that analyzes chunk content to determine if it's 'policy' or 'concept' based on keyword matching (policy keywords: 'deadline', 'grading', 'late', 'attendance', 'policy', 'exam date'; concept keywords: 'explain', 'algorithm', 'data structure', 'recursion', 'how does')
+- Store `contentType` metadata field ('policy' | 'concept') with each chunk
 - Create embeddings
 - Create `lib/rag/retrieval.ts` - Retrieval logic with similarity search
-- Test chunking and storage
+- Test chunking and storage with metadata
 
 **Task 1.4: Upload API Route**
 
@@ -352,7 +359,8 @@ Array<{
 - Verify database schema matches API contracts
 - Share API documentation and TypeScript types with frontend team
 - Test /api/upload endpoint with sample PDF and CSV files
-- Verify chunks are stored correctly with metadata
+- Verify chunks are stored correctly with metadata (including contentType field)
+- **Test content type categorization**: Upload sample syllabus and verify chunks are categorized as 'policy' or 'concept'
 - Coordinate with frontend team to test file upload integration
 
 ### Phase 2: Multi-Agent Router
@@ -381,15 +389,18 @@ Array<{
 **Task 2.3: Agent Handlers**
 
 - Create `lib/agents/syllabus-agent.ts` - POLICY agent
-- RAG over syllabus content
+- RAG over syllabus content with metadata filter: `metadata.contentType = 'policy'`
+- Filter retrieval to only search chunks with `contentType: 'policy'` metadata
 - Generate citations with page numbers
 - **Support Mock Mode**: When `MOCK_MODE=true`, return mock responses with sample citations
 - Skip RAG retrieval, return predefined mock responses
 - Mock responses should include citations format: "See Syllabus page X"
 - Strict "I don't know" if confidence low → escalate
 - Create `lib/agents/concept-agent.ts` - CONCEPT agent
-- RAG over lecture/content
-- Generate citations
+- RAG over course content with metadata filter: `metadata.contentType = 'concept'`
+- Filter retrieval to only search chunks with `contentType: 'concept'` metadata
+- This ensures CONCEPT queries search concept-heavy sections from syllabus PDF
+- Generate citations with page numbers or week references
 - **Support Mock Mode**: When `MOCK_MODE=true`, return mock concept explanations with citations
 - Strict "I don't know" if confidence low → escalate
 - Create `lib/agents/escalation-handler.ts` - ESCALATE handler
@@ -412,6 +423,8 @@ Array<{
 
 - Test /api/chat endpoint with various query types (POLICY, CONCEPT, ESCALATE)
 - Verify agent routing works correctly for different query categories
+- **Test metadata filtering**: Verify POLICY queries retrieve policy chunks, CONCEPT queries retrieve concept chunks
+- **Test content type categorization**: Verify chunks are properly categorized during upload (test with sample syllabus)
 - Test citation format matches frontend expectations
 - Verify escalation entries are created in database when triggered
 - Test chat logging to chat_logs table
@@ -494,11 +507,12 @@ Array<{
 1. **AI Provider**: Google Gemini (via LangChain) - Chosen for free tier availability and cost-effectiveness
 2. **RAG Implementation**: Use LangChain's Supabase vector store integration
 3. **Chunking Strategy**: Semantic chunking with 200-300 token chunks, 50 token overlap
-4. **Citation Format**: "See Syllabus page X" or "See Lecture Week Y"
-5. **Classification**: LLM-based classification prompt using Gemini (fast, accurate)
-6. **Escalation Threshold**: If retrieval confidence < 0.7 or "I don't know" response, escalate
-7. **Demo Mode**: Environment variable `DEMO_MODE=true` and `DEMO_WEEK=4`
-8. **Mock Mode**: Environment variable `MOCK_MODE=true` - Returns mock responses instead of making LLM API calls (saves costs during development)
+4. **Content Type Categorization**: Automatic categorization during chunking using keyword analysis to tag chunks as 'policy' or 'concept'. POLICY agent filters to `contentType: 'policy'` chunks, CONCEPT agent filters to `contentType: 'concept'` chunks. This allows CONCEPT questions to search concept-heavy sections from the syllabus PDF without requiring separate lecture uploads.
+5. **Citation Format**: "See Syllabus page X" or "See Lecture Week Y"
+6. **Classification**: LLM-based classification prompt using Gemini (fast, accurate)
+7. **Escalation Threshold**: If retrieval confidence < 0.7 or "I don't know" response, escalate
+8. **Demo Mode**: Environment variable `DEMO_MODE=true` and `DEMO_WEEK=4`
+9. **Mock Mode**: Environment variable `MOCK_MODE=true` - Returns mock responses instead of making LLM API calls (saves costs during development)
 
 ## Dependencies to Install
 

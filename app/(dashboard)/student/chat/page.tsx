@@ -203,7 +203,7 @@ export default function StudentChatPage() {
                 Ask questions about your course policies, concepts, and schedules
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <ChatInterface courseId={courseId} userId={userId} />
             </CardContent>
           </Card>

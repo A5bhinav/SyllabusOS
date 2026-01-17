@@ -58,7 +58,7 @@ export function createClassificationChain() {
 
   try {
     const model = new ChatGoogleGenerativeAI({
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       apiKey: apiKey.trim(),
       temperature: 0.1, // Low temperature for consistent classification
       maxOutputTokens: 10, // Only need category name
@@ -90,7 +90,7 @@ export function createResponseChain(agentType: 'POLICY' | 'CONCEPT') {
 
   try {
     const model = new ChatGoogleGenerativeAI({
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash',
       apiKey: apiKey.trim(),
       temperature: 0.7,
       maxOutputTokens: 1024,

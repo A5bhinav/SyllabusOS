@@ -23,12 +23,29 @@ export class ConceptAgent {
 
     try {
       // Retrieve relevant chunks (filtered by contentType='concept')
-      const chunks = await retrieveRelevantChunks(query, {
-        courseId,
-        contentType: 'concept',
-        limit: 5,
-        scoreThreshold: 0.7, // Minimum similarity score
-      })
+      let chunks
+      try {
+        chunks = await retrieveRelevantChunks(query, {
+          courseId,
+          contentType: 'concept',
+          limit: 5,
+          scoreThreshold: mockMode ? 0.5 : 0.7, // Lower threshold in mock mode
+        })
+      } catch (retrievalError) {
+        console.error('[Concept Agent] Error retrieving chunks:', retrievalError)
+        // Check if it's a "no content" error or a real error
+        if (retrievalError instanceof Error && retrievalError.message.includes('Failed to query database')) {
+          // Database query failed - likely no content exists
+          return {
+            response: "I don't have enough information about this concept in the course materials. It looks like no course content has been uploaded yet. Your question has been escalated to the professor.",
+            citations: [],
+            confidence: 0.0,
+            shouldEscalate: true,
+          }
+        }
+        // Re-throw other retrieval errors
+        throw retrievalError
+      }
 
       if (chunks.length === 0) {
         // No relevant chunks found - escalate
@@ -42,7 +59,8 @@ export class ConceptAgent {
 
       // Check if confidence is too low (all chunks below threshold)
       const avgScore = chunks.reduce((sum, chunk) => sum + chunk.score, 0) / chunks.length
-      if (avgScore < 0.7) {
+      const minConfidence = mockMode ? 0.5 : 0.7
+      if (avgScore < minConfidence) {
         return {
           response: "I'm not confident in the answer to this question. Your question has been escalated to the professor.",
           citations: [],

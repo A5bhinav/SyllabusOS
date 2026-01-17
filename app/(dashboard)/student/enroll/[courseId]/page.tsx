@@ -92,10 +92,9 @@ export default function EnrollCoursePage() {
 
       setSuccess(true)
       
-      // Redirect to course chat after 2 seconds
-      setTimeout(() => {
-        router.push(`/student/chat?courseId=${courseId}`)
-      }, 2000)
+      // Redirect to course chat immediately
+      // Use replace to avoid adding to history (so back button doesn't go back to enroll page)
+      router.replace(`/student/chat?courseId=${courseId}&enrolled=true`)
     } catch (err: any) {
       console.error('Error enrolling:', err)
       setError(err.message || 'Failed to enroll in course')
@@ -136,6 +135,7 @@ export default function EnrollCoursePage() {
   }
 
   if (success) {
+    // Show success message briefly, then redirect happens automatically
     return (
       <div className="container mx-auto py-8 px-4 max-w-2xl">
         <Card className="border-green-500">
@@ -149,14 +149,12 @@ export default function EnrollCoursePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <div className="flex items-center justify-center py-4">
+              <LoadingSpinner size="lg" />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
               Redirecting to course chat...
             </p>
-            <Button asChild>
-              <Link href={`/student/chat?courseId=${courseId}`}>
-                Go to Course Chat
-              </Link>
-            </Button>
           </CardContent>
         </Card>
       </div>

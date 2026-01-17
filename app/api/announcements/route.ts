@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createErrorResponse, createUnauthorizedError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
+import { logger } from '@/lib/utils/logger'
 import type { Announcement, CreateAnnouncementRequest } from '@/types/api'
 
 /**
@@ -14,7 +16,10 @@ import type { Announcement, CreateAnnouncementRequest } from '@/types/api'
  * - weekNumber: Filter by week number
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('GET', '/api/announcements')
     const supabase = await createClient()
 
     // Authenticate user
@@ -24,10 +29,9 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/announcements', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Get user profile to determine role
@@ -38,10 +42,9 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/announcements', 404, duration)
+      return createNotFoundError('User profile')
     }
 
     // Get query parameters
@@ -130,17 +133,13 @@ export async function GET(request: NextRequest) {
       publishedAt: a.published_at || null,
     }))
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('GET', '/api/announcements', 200, duration, { count: response.length })
     return NextResponse.json(response)
   } catch (error) {
-    console.error('[Announcements API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch announcements',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('GET', '/api/announcements', error, 500)
+    return createErrorResponse(error, 'Failed to fetch announcements')
   }
 }
 
@@ -149,7 +148,10 @@ export async function GET(request: NextRequest) {
  * Create a new announcement (professors only)
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('POST', '/api/announcements')
     const supabase = await createClient()
 
     // Authenticate user
@@ -159,10 +161,9 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/announcements', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Verify user is a professor
@@ -173,35 +174,59 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError || !profile || profile.role !== 'professor') {
-      return NextResponse.json(
-        { error: 'Forbidden - only professors can create announcements' },
-        { status: 403 }
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/announcements', 403, duration)
+      return createErrorResponse(
+        new Error('Forbidden - only professors can create announcements'),
+        'Forbidden'
       )
     }
 
     // Parse request body
-    const body: CreateAnnouncementRequest & { courseId?: string } = await request.json()
+    let body: CreateAnnouncementRequest & { courseId?: string }
+    try {
+      body = await request.json()
+    } catch (error) {
+      return createErrorResponse(
+        new Error('Invalid JSON in request body'),
+        'Invalid request body'
+      )
+    }
+
     let { weekNumber, title, content, courseId } = body
 
-    // Validate input
-    if (!weekNumber || typeof weekNumber !== 'number' || weekNumber < 1) {
-      return NextResponse.json(
-        { error: 'weekNumber is required and must be a positive number' },
-        { status: 400 }
+    // Validate required fields
+    const requiredValidation = validateRequired(body, ['weekNumber', 'title', 'content'])
+    if (!requiredValidation.isValid) {
+      const errorMsg = requiredValidation.errors.map(e => e.message).join(', ')
+      return createErrorResponse(
+        new Error(errorMsg),
+        'Validation error'
       )
     }
 
-    if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'title is required and must be a non-empty string' },
-        { status: 400 }
+    // Validate types
+    const weekNumberTypeCheck = validateType({ weekNumber }, 'weekNumber', 'number')
+    if (!weekNumberTypeCheck.isValid || weekNumber < 1) {
+      return createErrorResponse(
+        new Error('weekNumber must be a positive number'),
+        'Validation error'
       )
     }
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'content is required and must be a non-empty string' },
-        { status: 400 }
+    const titleTypeCheck = validateType({ title }, 'title', 'string')
+    if (!titleTypeCheck.isValid || title.trim().length === 0) {
+      return createErrorResponse(
+        new Error('title must be a non-empty string'),
+        'Validation error'
+      )
+    }
+
+    const contentTypeCheck = validateType({ content }, 'content', 'string')
+    if (!contentTypeCheck.isValid || content.trim().length === 0) {
+      return createErrorResponse(
+        new Error('content must be a non-empty string'),
+        'Validation error'
       )
     }
 
@@ -267,17 +292,13 @@ export async function POST(request: NextRequest) {
       publishedAt: announcement.published_at || null,
     }
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('POST', '/api/announcements', 201, duration)
     return NextResponse.json(response, { status: 201 })
   } catch (error) {
-    console.error('[Announcements API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to create announcement',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('POST', '/api/announcements', error, 500)
+    return createErrorResponse(error, 'Failed to create announcement')
   }
 }
 

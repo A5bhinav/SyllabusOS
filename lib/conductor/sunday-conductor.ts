@@ -1,5 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateChatCompletion } from '@/lib/ai/client'
+import { getCurrentWeek } from '@/lib/utils/demo-mode'
+import { logger } from '@/lib/utils/logger'
 import type { Schedule, Announcement } from '@/types/database'
 
 export interface ConductorResult {
@@ -8,33 +10,6 @@ export interface ConductorResult {
   title: string
   content: string
   status: 'draft' | 'published'
-}
-
-/**
- * Get current week number
- * Uses DEMO_WEEK if DEMO_MODE is enabled, otherwise calculates from current date
- */
-function getCurrentWeek(): number {
-  const demoMode = process.env.DEMO_MODE === 'true'
-  
-  if (demoMode) {
-    const demoWeek = parseInt(process.env.DEMO_WEEK || '4', 10)
-    console.log(`[Conductor] DEMO_MODE enabled - using week ${demoWeek}`)
-    return demoWeek
-  }
-
-  // Calculate week number from current date
-  // Assuming semester starts around August 20th (adjust as needed)
-  const semesterStart = new Date(new Date().getFullYear(), 7, 20) // August 20
-  const now = new Date()
-  const diffTime = now.getTime() - semesterStart.getTime()
-  const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
-  
-  // Return at least week 1
-  const weekNumber = Math.max(1, diffWeeks + 1)
-  console.log(`[Conductor] Calculated week number: ${weekNumber}`)
-  
-  return weekNumber
 }
 
 /**
@@ -109,7 +84,7 @@ Generate both a title and content for this announcement. The title should be con
       content: content,
     }
   } catch (error) {
-    console.error('[Conductor] Error generating announcement with LLM:', error)
+    logger.error('[Conductor] Error generating announcement with LLM', error)
     
     // Fallback to template-based announcement if LLM fails
     const fallbackTitle = `Week ${schedule.week_number}: ${schedule.topic}`
@@ -164,9 +139,7 @@ export async function runSundayConductor(
     .maybeSingle()
 
   if (existingAnnouncement) {
-    console.log(
-      `[Conductor] Announcement already exists for week ${targetWeek} (status: ${existingAnnouncement.status})`
-    )
+    logger.info(`[Conductor] Announcement already exists for week ${targetWeek} (status: ${existingAnnouncement.status})`)
     
     // Return existing announcement
     const { data: announcement } = await supabase
@@ -225,9 +198,7 @@ export async function runSundayConductor(
     )
   }
 
-  console.log(
-    `[Conductor] Created announcement draft for week ${targetWeek}: ${newAnnouncement.id}`
-  )
+  logger.info(`[Conductor] Created announcement draft for week ${targetWeek}: ${newAnnouncement.id}`)
 
   return {
     announcementId: newAnnouncement.id,
@@ -263,7 +234,7 @@ export async function runConductorForAllCourses(): Promise<ConductorResult[]> {
       const result = await runSundayConductor(course.id, weekNumber)
       results.push(result)
     } catch (error) {
-      console.error(`[Conductor] Error processing course ${course.id}:`, error)
+      logger.error(`[Conductor] Error processing course ${course.id}`, error)
       // Continue with other courses even if one fails
     }
   }

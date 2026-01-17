@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runSundayConductor, runConductorForAllCourses } from '@/lib/conductor/sunday-conductor'
 import { createClient } from '@/lib/supabase/server'
+import { createErrorResponse, createUnauthorizedError, createForbiddenError, validateRequired, validateType } from '@/lib/utils/api-errors'
+import { getDemoModeInfo } from '@/lib/utils/demo-mode'
+import { logger } from '@/lib/utils/logger'
 
 /**
  * POST /api/conductor
@@ -14,7 +17,11 @@ import { createClient } from '@/lib/supabase/server'
  * }
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('POST', '/api/conductor')
+
     // Parse request body (optional)
     let body: {
       courseId?: string
@@ -23,12 +30,41 @@ export async function POST(request: NextRequest) {
     } = {}
 
     try {
-      body = await request.json()
+      const rawBody = await request.json()
+      body = rawBody || {}
     } catch {
       // Body is optional, continue with defaults
     }
 
     const { courseId, weekNumber } = body
+
+    // Validate weekNumber if provided
+    if (weekNumber !== undefined) {
+      const typeCheck = validateType({ weekNumber }, 'weekNumber', 'number')
+      if (!typeCheck.isValid) {
+        return createErrorResponse(
+          new Error(typeCheck.error || 'Invalid weekNumber'),
+          'Validation error'
+        )
+      }
+      if (weekNumber < 1) {
+        return createErrorResponse(
+          new Error('weekNumber must be a positive number'),
+          'Validation error'
+        )
+      }
+    }
+
+    // Validate courseId if provided
+    if (courseId !== undefined) {
+      const typeCheck = validateType({ courseId }, 'courseId', 'string')
+      if (!typeCheck.isValid) {
+        return createErrorResponse(
+          new Error(typeCheck.error || 'Invalid courseId'),
+          'Validation error'
+        )
+      }
+    }
 
     // Authenticate user (verify they are a professor)
     const supabase = await createClient()
@@ -38,10 +74,9 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/conductor', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Verify user is a professor
@@ -52,10 +87,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError || !profile || profile.role !== 'professor') {
-      return NextResponse.json(
-        { error: 'Forbidden - only professors can trigger the conductor' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/conductor', 403, duration)
+      return createForbiddenError('Only professors can trigger the conductor')
     }
 
     // Run conductor
@@ -66,6 +100,10 @@ export async function POST(request: NextRequest) {
     } else {
       // Run for all courses (requires professor access)
       const results = await runConductorForAllCourses()
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/conductor', 200, duration, { coursesProcessed: results.length })
+      
+      const demoInfo = getDemoModeInfo()
       return NextResponse.json({
         success: true,
         message: `Conductor completed for ${results.length} course(s)`,
@@ -75,9 +113,17 @@ export async function POST(request: NextRequest) {
           title: r.title,
           status: r.status,
         })),
+        demoMode: {
+          enabled: demoInfo.enabled,
+          currentWeek: demoInfo.currentWeek,
+        },
       })
     }
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('POST', '/api/conductor', 200, duration)
+    
+    const demoInfo = getDemoModeInfo()
     return NextResponse.json({
       success: true,
       message: 'Announcement draft created successfully',
@@ -88,17 +134,15 @@ export async function POST(request: NextRequest) {
         content: result.content,
         status: result.status,
       },
+      demoMode: {
+        enabled: demoInfo.enabled,
+        currentWeek: demoInfo.currentWeek,
+      },
     })
   } catch (error) {
-    console.error('[Conductor API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to run conductor',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('POST', '/api/conductor', error, 500)
+    return createErrorResponse(error, 'Failed to run conductor', true)
   }
 }
 
@@ -107,7 +151,11 @@ export async function POST(request: NextRequest) {
  * Get conductor status/info (optional endpoint)
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('GET', '/api/conductor')
+
     const supabase = await createClient()
     const {
       data: { user },
@@ -115,33 +163,27 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/conductor', 401, duration)
+      return createUnauthorizedError()
     }
 
-    // Get current week info
-    const demoMode = process.env.DEMO_MODE === 'true'
-    const currentWeek = demoMode
-      ? parseInt(process.env.DEMO_WEEK || '4', 10)
-      : Math.max(1, Math.floor((Date.now() - new Date(new Date().getFullYear(), 7, 20).getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1)
+    // Get current week info using centralized demo mode utility
+    const demoInfo = getDemoModeInfo()
+
+    const duration = Date.now() - startTime
+    logger.apiResponse('GET', '/api/conductor', 200, duration)
 
     return NextResponse.json({
-      currentWeek,
-      demoMode,
+      currentWeek: demoInfo.currentWeek,
+      demoMode: demoInfo.enabled,
+      demoWeek: demoInfo.demoWeek,
       mockMode: process.env.MOCK_MODE === 'true',
     })
   } catch (error) {
-    console.error('[Conductor API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to get conductor status',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('GET', '/api/conductor', error, 500)
+    return createErrorResponse(error, 'Failed to get conductor status', true)
   }
 }
 

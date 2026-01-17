@@ -139,6 +139,7 @@ export interface Course {
   professorId: string
   professorName: string | null
   professorEmail: string | null
+  joinCode?: string | null // Only visible to professors
   createdAt: string
   updatedAt: string
   isEnrolled: boolean // For students: indicates if they're enrolled in this course

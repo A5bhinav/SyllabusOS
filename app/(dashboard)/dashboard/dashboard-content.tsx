@@ -1,45 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import DashboardContent from './dashboard-content'
+'use client'
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
+import { Upload, LogOut } from 'lucide-react'
 
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Check user role and redirect if needed
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile) {
-    redirect('/login')
-  }
-
-  // If student, redirect to student dashboard
-  if (profile.role === 'student') {
-    redirect('/student')
-  }
-
-  // If professor, check if they have courses - redirect to onboarding if not
-  if (profile.role === 'professor') {
-    const { data: courses } = await supabase
-      .from('courses')
-      .select('id')
-      .eq('professor_id', user.id)
-      .limit(1)
-
-    if (!courses || courses.length === 0) {
-      redirect('/onboarding')
-    }
-  }
-
-  return <DashboardContent />
+export default function DashboardContent() {
+  const router = useRouter()
+  const [signingOut, setSigningOut] = useState(false)
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -49,15 +20,12 @@ export default async function DashboardPage() {
       
       if (error) {
         console.error('Error signing out:', error)
-        // Still redirect even if there's an error
       }
       
-      // Redirect to login page
       router.push('/login')
       router.refresh()
     } catch (error) {
       console.error('Error signing out:', error)
-      // Still redirect even if there's an error
       router.push('/login')
     } finally {
       setSigningOut(false)

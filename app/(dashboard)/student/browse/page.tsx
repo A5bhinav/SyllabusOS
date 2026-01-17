@@ -8,6 +8,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { BookOpen, CheckCircle, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Course } from '@/types/api'
+import { StudentNav } from '@/components/student/StudentNav'
 
 export default function BrowseCoursesPage() {
   const router = useRouter()
@@ -39,16 +40,21 @@ export default function BrowseCoursesPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-center py-12">
-          <LoadingSpinner size="lg" />
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4">
+          <div className="flex items-center justify-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
+    <>
+      <StudentNav />
+      <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Browse Courses</h1>
         <p className="text-muted-foreground">
@@ -131,7 +137,8 @@ export default function BrowseCoursesPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 

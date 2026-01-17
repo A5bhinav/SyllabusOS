@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { BookOpen, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { StudentNav } from '@/components/student/StudentNav'
 
 export default function EnrollCoursePage() {
   const router = useRouter()
@@ -105,64 +106,75 @@ export default function EnrollCoursePage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4 max-w-2xl">
-        <div className="flex items-center justify-center py-12">
-          <LoadingSpinner size="lg" />
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4 max-w-2xl">
+          <div className="flex items-center justify-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   if (error && !course) {
     return (
-      <div className="container mx-auto py-8 px-4 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/student/browse">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Browse
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4 max-w-2xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Error</CardTitle>
+              <CardDescription>{error}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline">
+                <Link href="/student/browse">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Browse
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     )
   }
 
   if (success) {
     // Show success message briefly, then redirect happens automatically
     return (
-      <div className="container mx-auto py-8 px-4 max-w-2xl">
-        <Card className="border-green-500">
-          <CardHeader>
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="h-6 w-6 text-green-500" />
-              <CardTitle>Successfully Enrolled!</CardTitle>
-            </div>
-            <CardDescription>
-              You have been enrolled in {course?.name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center py-4">
-              <LoadingSpinner size="lg" />
-            </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Redirecting to course chat...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4 max-w-2xl">
+          <Card className="border-green-500">
+            <CardHeader>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                <CardTitle>Successfully Enrolled!</CardTitle>
+              </div>
+              <CardDescription>
+                You have been enrolled in {course?.name}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center py-4">
+                <LoadingSpinner size="lg" />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Redirecting to course chat...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-2xl">
+    <>
+      <StudentNav />
+      <div className="container mx-auto py-8 px-4 max-w-2xl">
       <div className="mb-6">
         <Button asChild variant="ghost" className="mb-4">
           <Link href="/student/browse">
@@ -239,6 +251,7 @@ export default function EnrollCoursePage() {
           </Button>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   )
 }

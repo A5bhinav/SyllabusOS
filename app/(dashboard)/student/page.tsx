@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { Plus, MessageSquare, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { Announcements } from '@/components/student/Announcements'
+import { StudentNav } from '@/components/student/StudentNav'
 
 interface Course {
   id: string
@@ -193,16 +194,21 @@ export default function StudentHomePage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-center py-12">
-          <LoadingSpinner size="lg" />
+      <>
+        <StudentNav />
+        <div className="container mx-auto py-8 px-4">
+          <div className="flex items-center justify-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
+    <>
+      <StudentNav />
+      <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">My Classes</h1>
         <p className="text-muted-foreground">
@@ -245,9 +251,9 @@ export default function StudentHomePage() {
         </Card>
       ) : (
         <>
-          {/* Announcements Section - Show all announcements from enrolled courses */}
+          {/* Announcements Section - Show only most recent week */}
           <div className="mb-8">
-            <Announcements />
+            <Announcements showOnlyLatest={true} />
           </div>
 
           {/* Courses Grid */}
@@ -280,6 +286,7 @@ export default function StudentHomePage() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   )
 }

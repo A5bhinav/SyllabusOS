@@ -28,9 +28,9 @@ export class SyllabusAgent {
       let chunks
       try {
         chunks = await retrieveRelevantChunks(query, {
-          courseId,
-          contentType: 'policy',
-          limit: 5,
+        courseId,
+        contentType: 'policy',
+        limit: 5,
           scoreThreshold: mockMode ? 0.5 : 0.7, // Lower threshold in mock mode
         })
       } catch (retrievalError) {
@@ -350,11 +350,11 @@ Answer:`
             // Fallback: return the first sentence with the exam type
             const firstSentence = sentences.find(s => s.toLowerCase().includes(searchTerm))
             if (firstSentence) {
-              return {
+    return {
                 response: `Based on the syllabus: ${firstSentence.trim()}.`,
                 citations: generateCitations(chunks),
-                confidence: 0.85,
-                shouldEscalate: false,
+      confidence: 0.85,
+      shouldEscalate: false,
               }
             }
           }

@@ -26,9 +26,9 @@ export class ConceptAgent {
       let chunks
       try {
         chunks = await retrieveRelevantChunks(query, {
-          courseId,
-          contentType: 'concept',
-          limit: 5,
+        courseId,
+        contentType: 'concept',
+        limit: 5,
           scoreThreshold: mockMode ? 0.5 : 0.7, // Lower threshold in mock mode
         })
       } catch (retrievalError) {

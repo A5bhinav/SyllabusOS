@@ -113,26 +113,22 @@ export interface ConductorResponse {
 }
 
 export interface PulseResponse {
-  topConfusions: Array<{
-    topic: string
-    count: number
-    examples: string[]
-  }>
   totalQueries: number
   escalationCount: number
-  dailyTrends?: Array<{
+  dailyTrends: Array<{
     date: string
     count: number
   }>
-  queryDistribution?: {
+  queryDistribution: {
     POLICY: number
     CONCEPT: number
     ESCALATE: number
   }
-  metrics?: {
+  metrics: {
     totalQueriesToday: number
     escalationsPending: number
     avgResponseTime: number
+    mostConfusedTopic?: string
   }
 }
 

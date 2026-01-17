@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       if (role && existing.role !== role) {
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ role, name: name || existing.name, email })
+          .update({ role, name: name || existing.name || '', email })
           .eq('id', userId)
         
         if (updateError) {

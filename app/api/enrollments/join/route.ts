@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify user is a student
+    // Verify user is a student and get their profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('id, role, name, email')
       .eq('id', user.id)
       .single()
 
@@ -40,6 +40,19 @@ export async function POST(request: NextRequest) {
         { error: 'Forbidden - only students can join courses with join codes' },
         { status: 403 }
       )
+    }
+
+    // Ensure profile has a name - update if missing
+    if (!profile.name || !profile.name.trim()) {
+      const nameFromMetadata = user.user_metadata?.name
+      const fallbackName = nameFromMetadata || user.email?.split('@')[0] || 'Student'
+      
+      if (nameFromMetadata || !profile.name) {
+        await supabase
+          .from('profiles')
+          .update({ name: fallbackName })
+          .eq('id', user.id)
+      }
     }
 
     // Parse request body

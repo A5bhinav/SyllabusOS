@@ -6,6 +6,7 @@ import { parseScheduleFile } from '@/lib/utils/schedule-parser'
 import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError } from '@/lib/utils/api-errors'
 import { getDemoModeInfo } from '@/lib/utils/demo-mode'
 import { logger } from '@/lib/utils/logger'
+import { validateUploadSize, estimateEmbeddingCost, formatCost } from '@/lib/utils/cost-control'
 import type { UploadResponse } from '@/types/api'
 
 export const runtime = 'nodejs'
@@ -193,6 +194,46 @@ export async function POST(request: NextRequest) {
     // Process PDF syllabus
     const syllabusBuffer = Buffer.from(await syllabusFile.arrayBuffer())
     const chunks = await processPDF(syllabusBuffer, courseId)
+
+    // COST CONTROL: Validate before processing embeddings
+    const totalCharacters = chunks.reduce((sum, chunk) => sum + (chunk.content?.length || 0), 0)
+    const validation = validateUploadSize(chunks.length, totalCharacters)
+    
+    if (!validation.valid) {
+      logger.warn('[Upload API] Upload rejected due to size limits', {
+        chunkCount: chunks.length,
+        characterCount: totalCharacters,
+      })
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/upload', 400, duration)
+      return NextResponse.json(
+        {
+          error: validation.error || 'Upload exceeds size limits',
+          chunkCount: chunks.length,
+          characterCount: totalCharacters,
+        },
+        { status: 400 }
+      )
+    }
+    
+    if (validation.warning) {
+      logger.warn('[Upload API] Large upload warning', {
+        warning: validation.warning,
+        chunkCount: chunks.length,
+        characterCount: totalCharacters,
+      })
+    }
+    
+    // Log cost estimate before processing
+    const mockMode = process.env.MOCK_MODE === 'true'
+    if (!mockMode) {
+      const estimatedCost = estimateEmbeddingCost(totalCharacters)
+      logger.info('[Upload API] Cost estimate', {
+        chunkCount: chunks.length,
+        characterCount: totalCharacters,
+        estimatedCost: formatCost(estimatedCost),
+      })
+    }
 
     // Store chunks with embeddings
     const documents = chunks.map(chunk => ({

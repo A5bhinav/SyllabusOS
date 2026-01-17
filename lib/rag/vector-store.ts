@@ -1,6 +1,14 @@
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai'
 import { createServiceClient } from '../supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  validateUploadSize,
+  logApiUsage,
+  rateLimitDelay,
+  estimateEmbeddingCost,
+  formatCost,
+  MAX_CHUNKS_PER_UPLOAD,
+} from '../utils/cost-control'
 
 /**
  * Create embeddings instance
@@ -43,8 +51,29 @@ export async function storeDocumentsWithEmbeddings(
 ): Promise<void> {
   const supabaseClient = createServiceClient()
   
+  // COST CONTROL: Validate upload size before processing
+  const totalCharacters = documents.reduce((sum, doc) => sum + (doc.content?.length || 0), 0)
+  const validation = validateUploadSize(documents.length, totalCharacters)
+  
+  if (!validation.valid) {
+    throw new Error(validation.error || 'Upload validation failed')
+  }
+  
+  if (validation.warning) {
+    console.warn(`[Cost Control] ${validation.warning}`)
+  }
+  
   // Check if mock mode is enabled
   const mockMode = process.env.MOCK_MODE === 'true'
+  
+  // Log estimated cost (even in mock mode for transparency)
+  if (!mockMode) {
+    const estimatedCost = estimateEmbeddingCost(totalCharacters)
+    console.log(
+      `[Cost Control] Processing ${documents.length} documents, ${totalCharacters.toLocaleString()} characters. ` +
+      `Estimated cost: ${formatCost(estimatedCost)}`
+    )
+  }
   
   let vectors: number[][]
   
@@ -121,10 +150,25 @@ export async function storeDocumentsWithEmbeddings(
       let validVectors: number[][] = []
       const batchSize = 10 // Process in smaller batches
       
+      // COST CONTROL: Log total API usage
+      const totalChars = validTexts.reduce((sum, text) => sum + text.length, 0)
+      logApiUsage('embedding', validTexts.length, totalChars)
+      
       try {
         for (let i = 0; i < validTexts.length; i += batchSize) {
           const batch = validTexts.slice(i, i + batchSize)
-          console.log(`[Embeddings] Processing batch ${Math.floor(i / batchSize) + 1} (${batch.length} documents)...`)
+          const batchChars = batch.reduce((sum, text) => sum + text.length, 0)
+          const batchCost = estimateEmbeddingCost(batchChars)
+          
+          console.log(
+            `[Embeddings] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(validTexts.length / batchSize)} ` +
+            `(${batch.length} documents, ${batchChars.toLocaleString()} chars, est. ${formatCost(batchCost)})...`
+          )
+          
+          // COST CONTROL: Rate limiting between batches
+          if (i > 0) {
+            await rateLimitDelay()
+          }
           
           try {
             const batchVectors = await embeddings.embedDocuments(batch)
@@ -261,7 +305,12 @@ export async function storeDocumentsWithEmbeddings(
         }
       }
       
-      console.log(`[Embeddings] Successfully generated ${validVectors.length} embeddings`)
+      const finalChars = validTexts.reduce((sum, text) => sum + text.length, 0)
+      const finalCost = estimateEmbeddingCost(finalChars)
+      console.log(
+        `[Embeddings] Successfully generated ${validVectors.length} embeddings. ` +
+        `Total cost: ${formatCost(finalCost)}`
+      )
       
       vectors = validVectors
       // Update documents to only include valid ones

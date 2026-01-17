@@ -103,13 +103,32 @@ export async function POST(request: NextRequest) {
       // Create new course
       const courseName = (formData.get('courseName') as string) || 'New Course'
       
+      // Generate join code
+      const { generateJoinCode } = await import('@/lib/utils/join-code')
+      let joinCode = generateJoinCode()
+      
+      // Ensure uniqueness (retry if collision)
+      let attempts = 0
+      while (attempts < 10) {
+        const { data: existing } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('join_code', joinCode)
+          .maybeSingle()
+        
+        if (!existing) break
+        joinCode = generateJoinCode()
+        attempts++
+      }
+      
       const { data: newCourse, error: courseError } = await supabase
         .from('courses')
         .insert({
           name: courseName,
           professor_id: user.id,
+          join_code: joinCode,
         })
-        .select('id')
+        .select('id, join_code')
         .single()
 
       if (courseError || !newCourse) {
@@ -125,7 +144,7 @@ export async function POST(request: NextRequest) {
       // Verify course belongs to professor
       const { data: course, error: courseError } = await supabase
         .from('courses')
-        .select('id, professor_id')
+        .select('id, professor_id, join_code')
         .eq('id', courseId)
         .single()
 
@@ -139,6 +158,35 @@ export async function POST(request: NextRequest) {
         const duration = Date.now() - startTime
         logger.apiResponse('POST', '/api/upload', 403, duration)
         return createForbiddenError('Unauthorized to modify this course')
+      }
+
+      // If course exists but has no join code, generate one
+      if (!course.join_code) {
+        const { generateJoinCode } = await import('@/lib/utils/join-code')
+        let joinCode = generateJoinCode()
+        
+        // Ensure uniqueness
+        let attempts = 0
+        while (attempts < 10) {
+          const { data: existing } = await supabase
+            .from('courses')
+            .select('id')
+            .eq('join_code', joinCode)
+            .maybeSingle()
+          
+          if (!existing) break
+          joinCode = generateJoinCode()
+          attempts++
+        }
+        
+        const { error: updateError } = await supabase
+          .from('courses')
+          .update({ join_code: joinCode })
+          .eq('id', courseId)
+        
+        if (updateError) {
+          logger.warn('[Upload API] Failed to generate join code for existing course', updateError)
+        }
       }
     }
 
@@ -201,12 +249,23 @@ export async function POST(request: NextRequest) {
       scheduleEntries: scheduleEntriesCount,
     })
 
+    // Get join code for response
+    const { data: courseWithCode } = await supabase
+      .from('courses')
+      .select('join_code')
+      .eq('id', courseId)
+      .single()
+
     const demoInfo = getDemoModeInfo()
-    const response: UploadResponse & { demoMode?: { enabled: boolean; currentWeek?: number } } = {
+    const response: UploadResponse & { 
+      joinCode?: string
+      demoMode?: { enabled: boolean; currentWeek?: number } 
+    } = {
       success: true,
       courseId,
       chunksCreated: chunks.length,
       scheduleEntries: scheduleEntriesCount,
+      ...(courseWithCode?.join_code && { joinCode: courseWithCode.join_code }),
       ...(scheduleResult.errors.length > 0 && { warnings: scheduleResult.errors }),
       ...(demoInfo.enabled && {
         demoMode: {

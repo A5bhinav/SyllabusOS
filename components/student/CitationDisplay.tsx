@@ -15,22 +15,22 @@ export function CitationDisplay({ citations, className }: CitationDisplayProps) 
   }
 
   return (
-    <div className={cn('mt-3 space-y-2', className)}>
-      <div className="flex items-center space-x-2 text-xs font-medium text-muted-foreground">
-        <FileText className="h-3 w-3" />
-        <span>Sources:</span>
+    <div className={cn('space-y-2.5', className)}>
+      <div className="flex items-center space-x-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <FileText className="h-3.5 w-3.5" />
+        <span>Sources</span>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="space-y-2">
         {citations.map((citation, index) => (
-          <li key={index} className="flex items-start space-x-2 text-xs">
-            <BookOpen className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <div className="flex-1">
-              <span className="text-primary hover:underline cursor-pointer">
+          <li key={index} className="flex items-start space-x-2.5 text-xs">
+            <BookOpen className="h-3.5 w-3.5 mt-0.5 text-primary/70 flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <span className="text-primary font-medium hover:underline cursor-pointer inline-block">
                 {citation.source}
-                {citation.page && ` (page ${citation.page})`}
+                {citation.page && <span className="text-muted-foreground"> (page {citation.page})</span>}
               </span>
               {citation.content && (
-                <p className="text-muted-foreground mt-0.5 line-clamp-2">
+                <p className="text-muted-foreground leading-relaxed line-clamp-2">
                   {citation.content}
                 </p>
               )}

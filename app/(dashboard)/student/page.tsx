@@ -161,95 +161,126 @@ export default function StudentHomePage() {
   return (
     <>
       <StudentNav />
-      <div className="container mx-auto py-8 px-4 max-w-6xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">My Classes</h1>
-        <p className="text-muted-foreground">
-          Access your course materials and chat with your course assistant
-        </p>
-      </div>
-
-      {/* Announcements Section - Only show if student is enrolled in courses */}
-      {courses.length > 0 && (
-        <div className="mb-8">
-          <Announcements showOnlyLatest={true} />
-        </div>
-      )}
-
-      {error && (
-        <Card className="mb-6 border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-sm text-destructive">{error}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {courses.length === 0 ? (
-        <Card className="border-2 border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 px-4">
-            <BookOpen className="h-16 w-16 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No classes yet</h2>
-            <p className="text-muted-foreground text-center mb-6 max-w-md">
-              You&apos;re not enrolled in any classes. Start a conversation in a course chat to join a class,
-              or contact your professor to be added to a course.
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto py-8 px-4 max-w-7xl">
+          {/* Header Section */}
+          <div className="mb-10 space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight">My Classes</h1>
+            <p className="text-lg text-muted-foreground">
+              Access your course materials and chat with your AI course assistant
             </p>
-            <div className="flex gap-3">
-              <Button asChild variant="outline">
-                <Link href="/student/chat">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Go to Course Chat
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link href="/student/browse">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Browse Courses
-                </Link>
-              </Button>
+          </div>
+
+          {/* Announcements Section - Only show if student is enrolled in courses */}
+          {courses.length > 0 && (
+            <div className="mb-10">
+              <Announcements showOnlyLatest={true} />
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* Courses Grid with Add Class Button */}
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Enrolled Courses</h2>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/student/browse">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Class
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course) => (
-              <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                        <BookOpen className="h-6 w-6 text-primary" />
-                      </div>
-                    </div>
-                    <CardTitle className="text-xl mb-1 line-clamp-2">{course.name}</CardTitle>
-                    <CardDescription>
-                      Course Assistant
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0 mt-auto">
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                      <div>
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Open Chat
-                      </div>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
+          )}
+
+          {error && (
+            <Card className="mb-6 border-destructive/50 bg-destructive/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {courses.length === 0 ? (
+            <Card className="border-2 border-dashed border-muted-foreground/25 bg-card/50">
+              <CardContent className="flex flex-col items-center justify-center py-20 px-4">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+                  <BookOpen className="h-10 w-10 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold mb-3">No classes yet</h2>
+                <p className="text-muted-foreground text-center mb-8 max-w-md leading-relaxed">
+                  You&apos;re not enrolled in any classes yet. Browse available courses to get started, 
+                  or contact your professor to be added to a course.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button asChild size="lg" className="shadow-sm hover:shadow-md transition-shadow">
+                    <Link href="/student/browse">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Browse Courses
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg">
+                    <Link href="/student/chat">
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Go to Chat
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Courses Header */}
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold">Your Courses</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {courses.length} {courses.length === 1 ? 'course' : 'courses'} enrolled
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="lg">
+                  <Link href="/student/browse">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Class
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Courses Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courses.map((course) => (
+                  <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>
+                    <Card className="group hover:shadow-xl transition-all duration-200 cursor-pointer h-full flex flex-col border-2 hover:border-primary/50">
+                      <CardHeader className="pb-4">
+                        <div className="w-14 h-14 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex items-center justify-center mb-4">
+                          <BookOpen className="h-7 w-7 text-primary" />
+                        </div>
+                        <CardTitle className="text-xl mb-2 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                          {course.name}
+                        </CardTitle>
+                        <CardDescription className="text-base">
+                          AI Course Assistant
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0 mt-auto">
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start group-hover:bg-primary/5 transition-colors" 
+                          asChild
+                        >
+                          <div>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Open Chat
+                          </div>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </>
   )

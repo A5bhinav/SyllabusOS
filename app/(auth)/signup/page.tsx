@@ -167,115 +167,174 @@ export default function SignupPage() {
   };
 
   return (
-    <Card>
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-        <CardDescription>
-          Enter your information to get started with SyllabusOS
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              disabled={loading}
-            />
+    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
+      <Card className="w-full max-w-md shadow-xl border-2">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+            <svg
+              className="w-7 h-7 text-primary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <div className="flex gap-4">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="role"
-                  value="student"
-                  checked={role === 'student'}
-                  onChange={(e) => setRole(e.target.value as Role)}
-                  disabled={loading}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm">Student</span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="role"
-                  value="professor"
-                  checked={role === 'professor'}
-                  onChange={(e) => setRole(e.target.value as Role)}
-                  disabled={loading}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm">Professor</span>
-              </label>
+          <CardTitle className="text-3xl font-bold">Create your account</CardTitle>
+          <CardDescription className="text-base">
+            Get started with SyllabusOS in seconds
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">
+                Full name
+              </Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={loading}
+                className="h-11"
+              />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                className="h-11"
+              />
             </div>
-          )}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Creating account...
-              </>
-            ) : (
-              'Sign up'
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">I am a</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('student')}
+                  disabled={loading}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    role === 'student'
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-primary/50 bg-card'
+                  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div className="text-sm font-medium mb-1">Student</div>
+                  <div className="text-xs text-muted-foreground">Ask questions, get answers</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('professor')}
+                  disabled={loading}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    role === 'professor'
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-primary/50 bg-card'
+                  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div className="text-sm font-medium mb-1">Professor</div>
+                  <div className="text-xs text-muted-foreground">Manage courses & students</div>
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Create a password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                className="h-11"
+              />
+              <p className="text-xs text-muted-foreground">At least 6 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                Confirm password
+              </Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={loading}
+                className="h-11"
+              />
+            </div>
+            {error && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start gap-2">
+                <svg
+                  className="w-4 h-4 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>{error}</span>
+              </div>
             )}
-          </Button>
-        </form>
-        <div className="mt-4 text-center text-sm">
-          Already have an account?{' '}
-          <Link href="/login" className="text-primary hover:underline">
-            Log in
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+            <Button 
+              type="submit" 
+              className="w-full h-11 text-base font-medium shadow-sm hover:shadow-md transition-shadow" 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Creating account...
+                </>
+              ) : (
+                'Create account'
+              )}
+            </Button>
+          </form>
+          <div className="relative py-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Already registered?</span>
+            </div>
+          </div>
+          <div className="text-center">
+            <Link 
+              href="/login" 
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Sign in to your account →
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

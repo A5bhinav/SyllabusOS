@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { CitationDisplay } from './CitationDisplay'
@@ -58,23 +59,23 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     >
       <div
         className={cn(
-          'flex flex-col max-w-[80%] md:max-w-[70%] space-y-1',
+          'flex flex-col max-w-[85%] md:max-w-[75%] space-y-2',
           isUser ? 'items-end' : 'items-start'
         )}
       >
         <div className="relative group">
           <div
             className={cn(
-              'rounded-lg px-4 py-2.5 shadow-sm',
+              'rounded-xl px-4 py-3 shadow-sm border',
               isUser
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-foreground'
+                ? 'bg-primary text-primary-foreground border-primary/20'
+                : 'bg-card text-foreground border-border/50'
             )}
           >
-            <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.text}</p>
             
             {!isUser && message.citations && message.citations.length > 0 && (
-              <CitationDisplay citations={message.citations} className="mt-3" />
+              <CitationDisplay citations={message.citations} className="mt-3 pt-3 border-t border-border/30" />
             )}
           </div>
           
@@ -84,14 +85,21 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               variant="ghost"
               size="icon"
               className={cn(
-                'absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity',
-                'hover:bg-background/80'
+                'absolute -top-1 -right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-all duration-200',
+                'hover:bg-background/90 border border-border shadow-sm',
+                'hover:scale-110 active:scale-95'
               )}
               onClick={handleCopy}
               aria-label="Copy message"
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-green-600" />
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                >
+                  <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                </motion.div>
               ) : (
                 <Copy className="h-3.5 w-3.5" />
               )}
@@ -100,24 +108,29 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         </div>
 
         {isEscalated && (
-          <div className="rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2 text-xs">
-            <p className="text-blue-700 dark:text-blue-400 font-medium">
+          <motion.div
+            initial={{ opacity: 0, y: 5, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="w-full rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-4 py-3 space-y-1"
+          >
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
               Your request has been escalated to the professor for review.
             </p>
             {message.escalationId && (
-              <p className="text-blue-600 dark:text-blue-500 mt-1">
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-mono">
                 Escalation ID: {message.escalationId}
               </p>
             )}
-          </div>
+          </motion.div>
         )}
 
-        <div className="flex items-center space-x-1.5 text-xs text-muted-foreground px-1">
+        <div className="flex items-center space-x-1.5 text-xs text-muted-foreground px-2">
           <span>{format(message.timestamp, 'HH:mm')}</span>
           {!isUser && message.agent && (
             <>
               <span>•</span>
-              <span className="capitalize">{message.agent.toLowerCase()}</span>
+              <span className="capitalize font-medium">{message.agent.toLowerCase()}</span>
             </>
           )}
         </div>

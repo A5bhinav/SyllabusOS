@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,21 +23,87 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Implement Supabase auth when backend is ready
-      // const { data, error } = await supabase.auth.signInWithPassword({
-      //   email,
-      //   password,
-      // });
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // TODO: Handle actual auth response
-      // if (error) throw error;
-      
-      // Redirect to dashboard
-      // TODO: Redirect based on user role (student/professor)
-      router.push('/onboarding');
+      if (authError) {
+        throw authError;
+      }
+
+      // Get user profile to determine role
+      if (data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        // If profile doesn't exist, create it (fallback)
+        if (profileError || !profile) {
+          console.warn('Profile not found, attempting to create...');
+          try {
+            const response = await fetch('/api/auth/create-profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: data.user.id,
+                email: data.user.email!,
+                name: data.user.user_metadata?.name || '',
+                role: data.user.user_metadata?.role || 'student',
+              }),
+            });
+
+            if (response.ok) {
+              // Re-fetch profile
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', data.user.id)
+                .single();
+
+              if (newProfile?.role === 'professor') {
+                router.push('/dashboard');
+              } else {
+                router.push('/student/chat');
+              }
+              return;
+            }
+          } catch (err) {
+            console.error('Failed to create profile:', err);
+          }
+          
+          // Default to student chat if profile creation fails
+          router.push('/student/chat');
+          return;
+        }
+
+        // Redirect based on role from database
+        // Check if professor has courses - if not, go to onboarding
+        if (profile.role === 'professor') {
+          // Check if professor has any courses
+          const { data: courses } = await supabase
+            .from('courses')
+            .select('id')
+            .eq('professor_id', data.user.id)
+            .limit(1);
+
+          // If no courses, redirect to onboarding to upload files
+          if (!courses || courses.length === 0) {
+            router.push('/onboarding');
+          } else {
+            router.push('/dashboard');
+          }
+        } else {
+          router.push('/student/chat');
+        }
+      } else {
+        router.push('/onboarding');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to log in. Please check your credentials.');
     } finally {

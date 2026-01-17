@@ -4,7 +4,7 @@
   "description": "AI Professor-in-a-Box - Course management system with multi-agent routing",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -42,6 +42,7 @@
     "pdf-parse": "^2.4.5",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-hook-form": "^7.71.1",
     "recharts": "^3.6.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",

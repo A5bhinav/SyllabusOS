@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Profiles table - User accounts
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT UNIQUE NOT NULL,
   name TEXT,
@@ -15,7 +15,7 @@ CREATE TABLE profiles (
 );
 
 -- Courses table - Course metadata
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   professor_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -24,7 +24,7 @@ CREATE TABLE courses (
 );
 
 -- Course content table - Chunked syllabus/lecture content with vector embeddings
-CREATE TABLE course_content (
+CREATE TABLE IF NOT EXISTS course_content (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE course_content (
 );
 
 -- Schedules table - Weekly schedule data
-CREATE TABLE schedules (
+CREATE TABLE IF NOT EXISTS schedules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   week_number INTEGER NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE schedules (
 );
 
 -- Escalations table - Student escalation queue
-CREATE TABLE escalations (
+CREATE TABLE IF NOT EXISTS escalations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -63,7 +63,7 @@ CREATE TABLE escalations (
 );
 
 -- Announcements table - Weekly announcements
-CREATE TABLE announcements (
+CREATE TABLE IF NOT EXISTS announcements (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   week_number INTEGER NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE announcements (
 );
 
 -- Chat logs table - Chat history for analytics
-CREATE TABLE chat_logs (
+CREATE TABLE IF NOT EXISTS chat_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -87,6 +87,22 @@ CREATE TABLE chat_logs (
   escalation_id UUID REFERENCES escalations(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Drop existing indexes if they exist (for idempotent migration)
+DROP INDEX IF EXISTS idx_course_content_course_id;
+DROP INDEX IF EXISTS idx_course_content_embedding;
+DROP INDEX IF EXISTS idx_course_content_content_type;
+DROP INDEX IF EXISTS idx_course_content_week_number;
+DROP INDEX IF EXISTS idx_schedules_course_id;
+DROP INDEX IF EXISTS idx_schedules_week_number;
+DROP INDEX IF EXISTS idx_escalations_course_id;
+DROP INDEX IF EXISTS idx_escalations_status;
+DROP INDEX IF EXISTS idx_escalations_category;
+DROP INDEX IF EXISTS idx_announcements_course_id;
+DROP INDEX IF EXISTS idx_announcements_status;
+DROP INDEX IF EXISTS idx_chat_logs_course_id;
+DROP INDEX IF EXISTS idx_chat_logs_user_id;
+DROP INDEX IF EXISTS idx_chat_logs_created_at;
 
 -- Indexes for performance
 CREATE INDEX idx_course_content_course_id ON course_content(course_id);
@@ -115,12 +131,38 @@ ALTER TABLE escalations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_logs ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (for idempotent migration)
+DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON profiles;
+DROP POLICY IF EXISTS "Professors can view their courses" ON courses;
+DROP POLICY IF EXISTS "Professors can create courses" ON courses;
+DROP POLICY IF EXISTS "Professors can update their courses" ON courses;
+DROP POLICY IF EXISTS "Users can view course content" ON course_content;
+DROP POLICY IF EXISTS "Professors can manage course content" ON course_content;
+DROP POLICY IF EXISTS "Users can view schedules" ON schedules;
+DROP POLICY IF EXISTS "Professors can manage schedules" ON schedules;
+DROP POLICY IF EXISTS "Professors can view all escalations" ON escalations;
+DROP POLICY IF EXISTS "Students can view their own escalations" ON escalations;
+DROP POLICY IF EXISTS "Students can create escalations" ON escalations;
+DROP POLICY IF EXISTS "Professors can update escalations" ON escalations;
+DROP POLICY IF EXISTS "Students can view published announcements" ON announcements;
+DROP POLICY IF EXISTS "Professors can view all announcements" ON announcements;
+DROP POLICY IF EXISTS "Professors can manage announcements" ON announcements;
+DROP POLICY IF EXISTS "Users can view their own chat logs" ON chat_logs;
+DROP POLICY IF EXISTS "Users can create chat logs" ON chat_logs;
+DROP POLICY IF EXISTS "Professors can view chat logs for their courses" ON chat_logs;
+
 -- Profiles policies - users can read their own profile
 CREATE POLICY "Users can view their own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Users can update their own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile" ON profiles
+  FOR INSERT 
+  WITH CHECK (auth.uid() = id);
 
 -- Courses policies - professors can manage their courses, students can view enrolled courses
 CREATE POLICY "Professors can view their courses" ON courses
@@ -242,6 +284,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Drop existing triggers if they exist
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+DROP TRIGGER IF EXISTS update_courses_updated_at ON courses;
+DROP TRIGGER IF EXISTS update_announcements_updated_at ON announcements;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
 -- Triggers to automatically update updated_at
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -291,4 +339,57 @@ BEGIN
   LIMIT match_count;
 END;
 $$;
+
+-- Function to auto-create profile when user signs up
+-- Uses SECURITY DEFINER to bypass RLS policies
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  user_role TEXT;
+  user_name TEXT;
+BEGIN
+  -- Extract role from metadata, default to 'student'
+  user_role := COALESCE(
+    NEW.raw_user_meta_data->>'role',
+    'student'
+  );
+  
+  -- Validate role
+  IF user_role NOT IN ('student', 'professor') THEN
+    user_role := 'student';
+  END IF;
+  
+  -- Extract name from metadata
+  user_name := COALESCE(
+    NEW.raw_user_meta_data->>'name',
+    split_part(NEW.email, '@', 1)  -- Fallback to email prefix
+  );
+  
+  -- Insert profile (SECURITY DEFINER bypasses RLS)
+  INSERT INTO public.profiles (id, email, name, role)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    user_name,
+    user_role
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET
+    email = EXCLUDED.email,
+    name = COALESCE(EXCLUDED.name, profiles.name),
+    role = COALESCE(EXCLUDED.role, profiles.role);
+    
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log error but don't fail the auth creation
+    RAISE WARNING 'Error creating profile for user %: %', NEW.id, SQLERRM;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger that fires after a new user is inserted into auth.users
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 

@@ -1,5 +1,49 @@
-const pdfParse = require('pdf-parse')
 import type { CourseContent } from '../../types/database'
+
+// Use require for pdf-parse to avoid webpack ES module issues
+// pdf-parse v2.x is now a class-based API (not a function like v1)
+let PDFParseClass: any = null
+
+function getPdfParseClass() {
+  if (!PDFParseClass) {
+    // Use eval to prevent webpack from trying to bundle this
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParseModule = eval('require')('pdf-parse')
+    
+    // pdf-parse 2.x exports PDFParse as a class
+    // Get the class from the module
+    if (pdfParseModule?.PDFParse && typeof pdfParseModule.PDFParse === 'function') {
+      PDFParseClass = pdfParseModule.PDFParse
+    } else if (typeof pdfParseModule === 'function') {
+      // Fallback: module might export class directly
+      PDFParseClass = pdfParseModule
+    } else {
+      console.error('pdf-parse module structure:', {
+        type: typeof pdfParseModule,
+        keys: Object.keys(pdfParseModule || {}).slice(0, 10),
+        hasPDFParse: 'PDFParse' in (pdfParseModule || {})
+      })
+      throw new Error(`pdf-parse module did not export PDFParse class. Got type: ${typeof pdfParseModule}`)
+    }
+  }
+  return PDFParseClass
+}
+
+// Parse PDF buffer using pdf-parse v2.x class-based API
+async function parsePDFBuffer(pdfBuffer: Buffer): Promise<{ text: string; numpages?: number }> {
+  const PDFParse = getPdfParseClass()
+  
+  // Create instance with buffer data
+  const parser = new PDFParse({ data: pdfBuffer })
+  
+  // Get text from PDF using the new API
+  const result = await parser.getText()
+  
+  return {
+    text: result.text,
+    numpages: result.total
+  }
+}
 
 /**
  * Content type categorization based on keyword analysis
@@ -50,7 +94,7 @@ export function categorizeChunk(content: string): 'policy' | 'concept' {
  */
 export async function parsePDF(pdfBuffer: Buffer): Promise<Array<{ text: string; page: number }>> {
   try {
-    const data = await pdfParse(pdfBuffer)
+    const data = await parsePDFBuffer(pdfBuffer)
     const pages: Array<{ text: string; page: number }> = []
     
     // pdf-parse returns text with page breaks marked
@@ -184,16 +228,28 @@ export async function processPDF(
   
   // Process each page
   for (const page of pages) {
+    // Skip empty pages
+    if (!page.text || page.text.trim().length === 0) {
+      console.warn(`Skipping empty page ${page.page}`)
+      continue
+    }
+    
     // Chunk the page text
     const pageChunks = chunkText(page.text)
     
     // Create chunk entries with metadata
     for (const chunkContent of pageChunks as string[]) {
+      // Skip empty chunks
+      if (!chunkContent || chunkContent.trim().length === 0) {
+        console.warn(`Skipping empty chunk on page ${page.page}`)
+        continue
+      }
+      
       // Categorize chunk
       const contentType = categorizeChunk(chunkContent)
       
       chunks.push({
-        content: chunkContent,
+        content: chunkContent.trim(), // Ensure trimmed content
         pageNumber: page.page,
         weekNumber: options?.weekNumber ?? null,
         topic: options?.topic ?? null,
@@ -207,6 +263,11 @@ export async function processPDF(
         },
       })
     }
+  }
+  
+  // Validate we have at least one chunk
+  if (chunks.length === 0) {
+    throw new Error('No valid chunks were created from the PDF. The PDF may be empty or contain only images.')
   }
   
   return chunks

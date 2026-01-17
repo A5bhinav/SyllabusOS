@@ -1,0 +1,130 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { FileUpload } from '@/components/shared/FileUpload'
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { uploadFiles } from '@/lib/api/upload'
+import { CheckCircle2, AlertCircle } from 'lucide-react'
+
+export default function OnboardingPage() {
+  const router = useRouter()
+  const [syllabusFile, setSyllabusFile] = useState<File | null>(null)
+  const [scheduleFile, setScheduleFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<{
+    courseId: string
+    chunksCreated: number
+    scheduleEntries: number
+  } | null>(null)
+
+  const handleUpload = async () => {
+    if (!syllabusFile || !scheduleFile) {
+      setError('Please select both a syllabus PDF and a schedule file')
+      return
+    }
+
+    setError(null)
+    setLoading(true)
+
+    try {
+      const response = await uploadFiles({
+        syllabus: syllabusFile,
+        schedule: scheduleFile,
+      })
+
+      if (response.success) {
+        setSuccess({
+          courseId: response.courseId,
+          chunksCreated: response.chunksCreated,
+          scheduleEntries: response.scheduleEntries,
+        })
+
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 2000)
+      } else {
+        setError(response.error || 'Upload failed')
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Failed to upload files')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const canUpload = syllabusFile && scheduleFile && !loading
+
+  return (
+    <div className="container mx-auto max-w-2xl py-8 px-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Course Setup</CardTitle>
+          <CardDescription>
+            Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <FileUpload
+            label="Syllabus (PDF)"
+            accept=".pdf,application/pdf"
+            file={syllabusFile}
+            onFileSelect={setSyllabusFile}
+            maxSizeMB={10}
+            disabled={loading}
+          />
+
+          <FileUpload
+            label="Schedule (CSV or Excel)"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            file={scheduleFile}
+            onFileSelect={setScheduleFile}
+            maxSizeMB={5}
+            disabled={loading}
+          />
+
+          {error && (
+            <div className="flex items-start space-x-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-start space-x-2 rounded-md bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
+              <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Upload successful!</p>
+                <p className="mt-1">
+                  Created {success.chunksCreated} content chunks and {success.scheduleEntries} schedule entries.
+                </p>
+                <p className="mt-1">Redirecting to dashboard...</p>
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={handleUpload}
+            disabled={!canUpload}
+            className="w-full"
+            size="lg"
+          >
+            {loading ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Uploading and processing...
+              </>
+            ) : (
+              'Upload and Process'
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+

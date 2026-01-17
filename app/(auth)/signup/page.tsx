@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { createClient } from '@/lib/supabase/client';
 
 type Role = 'student' | 'professor';
 
@@ -16,6 +17,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('student');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,28 +37,119 @@ export default function SignupPage() {
       return;
     }
 
+    if (!name.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: Implement Supabase auth when backend is ready
-      // const { data, error } = await supabase.auth.signUp({
-      //   email,
-      //   password,
-      //   options: {
-      //     data: {
-      //       role,
-      //     },
-      //   },
-      // });
+      const supabase = createClient();
       
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // TODO: Handle actual auth response
-      // if (error) throw error;
-      
-      // Redirect to dashboard
-      router.push('/onboarding');
+      // Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role,
+          },
+        },
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (authData.user) {
+        // Profile should be auto-created by database trigger
+        // Wait for trigger to execute and poll a few times
+        let profileExists = false;
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        while (!profileExists && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .eq('id', authData.user.id)
+            .single();
+          
+          if (profile && !error) {
+            profileExists = true;
+            // Verify role is correct, if not, we'll fix it below
+            break;
+          }
+          
+          attempts++;
+        }
+
+        // If profile still doesn't exist after polling, use API route
+        // (which has service role access and can bypass RLS)
+        if (!profileExists) {
+          try {
+            const response = await fetch('/api/auth/create-profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: authData.user.id,
+                email: authData.user.email!,
+                name: name.trim(),
+                role,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.warn('Profile creation via API failed:', errorData.error);
+            } else {
+              // Wait a bit for profile to be created
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          } catch (err) {
+            console.warn('Failed to create profile via API:', err);
+          }
+        }
+
+        // Fetch the actual profile from database to get the correct role
+        let { data: profileData, error: profileFetchError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', authData.user.id)
+          .single();
+
+        // If profile exists but role is wrong, update it
+        if (profileData && profileData.role !== role) {
+          console.log(`Profile role mismatch. Database: ${profileData.role}, Form: ${role}. Updating...`);
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ role })
+            .eq('id', authData.user.id);
+
+          if (!updateError) {
+            profileData.role = role;
+          } else {
+            console.error('Failed to update profile role:', updateError);
+          }
+        }
+
+        // Use database role if available, otherwise fall back to form role
+        const userRole = profileData?.role || role;
+
+        // Redirect based on actual database role
+        // Professors go to onboarding first to upload course files
+        if (userRole === 'professor') {
+          router.push('/onboarding');
+        } else {
+          router.push('/student/chat');
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
     } finally {
@@ -74,6 +167,18 @@ export default function SignupPage() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input

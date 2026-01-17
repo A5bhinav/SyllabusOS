@@ -12,12 +12,11 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor - Add auth token if available
 apiClient.interceptors.request.use(
-  (config) => {
-    // TODO: Get auth token from Supabase session when auth is implemented
-    // const session = await getSupabaseSession();
-    // if (session?.access_token) {
-    //   config.headers.Authorization = `Bearer ${session.access_token}`;
-    // }
+  async (config) => {
+    // Get auth token from Supabase session
+    // Note: For client-side requests, we'll handle auth via cookies
+    // For server-side requests, the API routes will handle auth via createClient()
+    // Since Next.js API routes use cookies automatically, we don't need to add headers here
     return config;
   },
   (error) => {

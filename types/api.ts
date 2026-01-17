@@ -11,6 +11,8 @@ export interface UploadResponse {
   courseId: string
   chunksCreated: number
   scheduleEntries: number
+  warnings?: string[] // Optional warnings from schedule parsing
+  error?: string // Error message if success is false
 }
 
 export interface ChatRequest {
@@ -37,5 +39,78 @@ export interface ScheduleEntry {
   assignments?: string | null
   readings?: string | null
   dueDate?: string | null
+}
+
+export interface Announcement {
+  id: string
+  courseId: string
+  weekNumber: number
+  title: string
+  content: string
+  status: 'draft' | 'published'
+  createdAt: string
+  updatedAt: string
+  publishedAt: string | null
+}
+
+export interface CreateAnnouncementRequest {
+  weekNumber: number
+  title: string
+  content: string
+}
+
+export interface UpdateAnnouncementRequest {
+  title?: string
+  content?: string
+  status?: 'draft' | 'published'
+}
+
+export interface Escalation {
+  id: string
+  courseId: string
+  studentId: string
+  studentName?: string
+  studentEmail?: string
+  query: string
+  status: 'pending' | 'resolved'
+  category?: string | null
+  createdAt: string
+  resolvedAt?: string | null
+}
+
+export interface ConductorRequest {
+  manual?: boolean
+  weekNumber?: number
+}
+
+export interface ConductorResponse {
+  success: boolean
+  announcementId?: string
+  weekNumber?: number
+  error?: string
+}
+
+export interface PulseResponse {
+  topConfusions: Array<{
+    topic: string
+    count: number
+    examples: string[]
+  }>
+  totalQueries: number
+  escalationCount: number
+  dailyTrends?: Array<{
+    date: string
+    count: number
+  }>
+  queryDistribution?: {
+    POLICY: number
+    CONCEPT: number
+    ESCALATE: number
+  }
+  metrics?: {
+    totalQueriesToday: number
+    escalationsPending: number
+    avgResponseTime: number
+  }
 }
 

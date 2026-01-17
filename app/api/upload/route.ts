@@ -191,10 +191,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response)
   } catch (error) {
     console.error('Upload error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to process upload'
+    if (error instanceof Error) {
+      errorMessage = error.message
+      // Check for common issues
+      if (error.message.includes('GOOGLE_GENAI_API_KEY')) {
+        errorMessage = 'Google Gemini API key is not configured. Please set GOOGLE_GENAI_API_KEY in your .env file, or enable MOCK_MODE=true for development.'
+      } else if (error.message.includes('embedding')) {
+        errorMessage = `Failed to generate embeddings: ${error.message}. Check your API key or enable MOCK_MODE=true for development.`
+      } else if (error.message.includes('database') || error.message.includes('relation')) {
+        errorMessage = `Database error: ${error.message}. Please ensure all migrations have been run.`
+      }
+    }
+    
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to process upload',
+        error: errorMessage,
       },
       { status: 500 }
     )

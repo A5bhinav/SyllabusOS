@@ -29,19 +29,26 @@ export default function StudentHomePage() {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 
         if (authError || !user) {
-          router.push('/login')
+          window.location.href = '/login'
           return
         }
 
         // Check if user is a student
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single()
 
-        if (profile?.role !== 'student') {
-          router.push('/dashboard')
+        if (profileError || !profile) {
+          // Profile not found, redirect to login
+          window.location.href = '/login'
+          return
+        }
+
+        if (profile.role !== 'student') {
+          // Not a student, redirect to dashboard (which will redirect professors correctly)
+          window.location.href = '/dashboard'
           return
         }
 

@@ -67,18 +67,19 @@ export default function LoginPage() {
                 .single();
 
               if (newProfile?.role === 'professor') {
-                router.push('/dashboard');
+                window.location.href = '/dashboard';
+                return;
               } else {
-                router.push('/student');
+                window.location.href = '/student';
+                return;
               }
-              return;
             }
           } catch (err) {
             console.error('Failed to create profile:', err);
           }
           
           // Default to student dashboard if profile creation fails
-          router.push('/student');
+          window.location.href = '/student';
           return;
         }
 
@@ -94,15 +95,19 @@ export default function LoginPage() {
 
           // If no courses, redirect to onboarding to upload files
           if (!courses || courses.length === 0) {
-            router.push('/onboarding');
+            window.location.href = '/onboarding';
+            return;
           } else {
-            router.push('/dashboard');
+            window.location.href = '/dashboard';
+            return;
           }
         } else {
-          router.push('/student');
+          window.location.href = '/student';
+          return;
         }
       } else {
-        router.push('/onboarding');
+        window.location.href = '/onboarding';
+        return;
       }
     } catch (err: any) {
       setError(err.message || 'Failed to log in. Please check your credentials.');

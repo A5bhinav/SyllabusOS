@@ -36,8 +36,9 @@ export function getGeminiClient(): ChatGoogleGenerativeAI | null {
   }
 
   try {
+    // Tested and confirmed: gemini-2.0-flash works with this API key
     const client = new ChatGoogleGenerativeAI({
-      model: 'gemini-pro', // Using gemini-pro for chat completions
+      model: 'gemini-2.0-flash',
       apiKey: apiKey.trim(),
       temperature: 0.7,
       maxOutputTokens: 1024,

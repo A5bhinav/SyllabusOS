@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { MessageBubble, type Message } from './MessageBubble'
-import { sendChatMessage } from '@/lib/api/chat'
+import { sendChatMessage, getChatHistory } from '@/lib/api/chat'
 import { Send, AlertCircle } from 'lucide-react'
 
 interface ChatInterfaceProps {
@@ -21,9 +21,12 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const viewportRef = useRef<HTMLElement | null>(null)
+  const [isUserAtBottom, setIsUserAtBottom] = useState(true)
 
   // Use useOptimistic for fast message updates
   const [optimisticMessages, addOptimisticMessage] = useOptimistic<Message[], OptimisticMessage>(
@@ -43,12 +46,94 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     }
   )
 
-  // Auto-scroll to bottom when messages change
+  // Load chat history on mount
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    async function loadHistory() {
+      try {
+        setIsLoadingHistory(true)
+        const history = await getChatHistory(courseId, userId, 100)
+        
+        // Transform API messages to match Message type
+        const transformedMessages: Message[] = history.messages.map((msg) => ({
+          id: msg.id,
+          text: msg.text,
+          role: msg.role,
+          timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+          agent: msg.agent,
+          citations: msg.citations,
+          escalated: msg.escalated,
+          escalationId: msg.escalationId,
+        }))
+        
+        setMessages(transformedMessages)
+        
+        // Scroll to bottom after loading history
+        setTimeout(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'auto' })
+            setIsUserAtBottom(true)
+          }
+        }, 100)
+      } catch (err: any) {
+        console.error('Error loading chat history:', err)
+        // Don't show error, just start with empty messages
+      } finally {
+        setIsLoadingHistory(false)
+      }
     }
-  }, [optimisticMessages])
+
+    // Only load if no initial messages provided
+    if (initialMessages.length === 0) {
+      loadHistory()
+    } else {
+      setIsLoadingHistory(false)
+    }
+  }, [courseId, userId, initialMessages.length])
+
+  // Check if user is at bottom of scroll area
+  useEffect(() => {
+    // Find the viewport element inside ScrollArea (Radix UI creates it)
+    const findViewport = () => {
+      if (!scrollAreaRef.current) return null
+      return scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement
+    }
+
+    const checkScrollPosition = () => {
+      const viewport = viewportRef.current || findViewport()
+      if (!viewport) return
+
+      viewportRef.current = viewport
+      const { scrollTop, scrollHeight, clientHeight } = viewport
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50 // 50px threshold
+      setIsUserAtBottom(isAtBottom)
+    }
+
+    // Check initially after a short delay to let ScrollArea render
+    const timeoutId = setTimeout(() => {
+      checkScrollPosition()
+      const viewport = findViewport()
+      if (viewport) {
+        viewport.addEventListener('scroll', checkScrollPosition, { passive: true })
+      }
+    }, 100)
+
+    return () => {
+      clearTimeout(timeoutId)
+      if (viewportRef.current) {
+        viewportRef.current.removeEventListener('scroll', checkScrollPosition)
+      }
+    }
+  }, [optimisticMessages.length]) // Re-check when messages change
+
+  // Auto-scroll to bottom when messages change, but only if user is at bottom
+  useEffect(() => {
+    if (messagesEndRef.current && isUserAtBottom && !isLoadingHistory) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    }
+  }, [optimisticMessages, isUserAtBottom, isLoadingHistory])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,7 +195,14 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     <div className="flex flex-col h-full max-h-[800px] border rounded-lg bg-background">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4">
-          {optimisticMessages.length === 0 ? (
+          {isLoadingHistory ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+              <LoadingSpinner size="lg" />
+              <p className="text-muted-foreground text-sm mt-4">
+                Loading chat history...
+              </p>
+            </div>
+          ) : optimisticMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12 text-center">
               <p className="text-muted-foreground text-sm">
                 Start a conversation by asking a question about your course.
@@ -120,17 +212,19 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
               </p>
             </div>
           ) : (
-            optimisticMessages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))
-          )}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2">
-                <LoadingSpinner size="sm" />
-                <span className="text-sm text-muted-foreground">AI is thinking...</span>
-              </div>
-            </div>
+            <>
+              {optimisticMessages.map((message) => (
+                <MessageBubble key={message.id} message={message} />
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2">
+                    <LoadingSpinner size="sm" />
+                    <span className="text-sm text-muted-foreground">AI is thinking...</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>

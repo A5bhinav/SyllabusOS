@@ -48,15 +48,39 @@ export default function StudentChatPage() {
 
         // If courseId is provided in query params, use it and verify enrollment
         if (courseIdFromParams) {
+          // Check if we just enrolled (from query param)
+          const justEnrolled = searchParams.get('enrolled') === 'true'
+          
           // Verify student is enrolled in this course
-          const { data: enrollment, error: enrollmentError } = await supabase
-            .from('enrollments')
-            .select('course_id')
-            .eq('student_id', user.id)
-            .eq('course_id', courseIdFromParams)
-            .maybeSingle()
+          // If just enrolled, retry a few times in case of race condition
+          let enrollment = null
+          let enrollmentError = null
+          let retries = justEnrolled ? 3 : 1
+          let retryDelay = 500 // 500ms between retries
+          
+          for (let attempt = 0; attempt < retries; attempt++) {
+            if (attempt > 0) {
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, retryDelay))
+            }
+            
+            const result = await supabase
+              .from('enrollments')
+              .select('course_id')
+              .eq('student_id', user.id)
+              .eq('course_id', courseIdFromParams)
+              .maybeSingle()
+            
+            enrollment = result.data
+            enrollmentError = result.error
+            
+            // If we found enrollment or it's not a race condition error, break
+            if (enrollment || (!enrollmentError && !justEnrolled)) {
+              break
+            }
+          }
 
-          if (enrollmentError) {
+          if (enrollmentError && !justEnrolled) {
             setError('Failed to verify enrollment. Please try again.')
             setLoading(false)
             return
@@ -69,6 +93,11 @@ export default function StudentChatPage() {
           }
 
           setCourseId(courseIdFromParams)
+          
+          // Clean up the enrolled query param from URL
+          if (justEnrolled) {
+            router.replace(`/student/chat?courseId=${courseIdFromParams}`, { scroll: false })
+          }
         } else {
           // Get course ID from enrollments table
           // Get the first course the student is enrolled in

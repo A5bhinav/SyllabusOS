@@ -1,4 +1,5 @@
 import { getSupabaseClient, getEmbeddings } from './vector-store'
+import { isMockMode } from '../ai/client'
 
 export interface RetrievalOptions {
   courseId: string
@@ -26,8 +27,84 @@ export async function retrieveRelevantChunks(
 ): Promise<RetrievedChunk[]> {
   try {
     const supabaseClient = getSupabaseClient()
-    const embeddings = getEmbeddings()
+    const mockMode = isMockMode()
     const limit = options.limit ?? 5
+    
+    // In mock mode or if embeddings are not available, use simple text search
+    if (mockMode) {
+      console.log('[Retrieval] MOCK_MODE enabled, using simple text search')
+      
+      // Fallback query (without vector search)
+      let queryBuilder = supabaseClient
+        .from('course_content')
+        .select('id, content, page_number, week_number, topic, content_type, metadata')
+        .eq('course_id', options.courseId)
+        .limit(limit)
+      
+      if (options.contentType) {
+        queryBuilder = queryBuilder.eq('content_type', options.contentType)
+      }
+      
+      const { data: fallbackData, error: fallbackError } = await queryBuilder
+      
+      if (fallbackError) {
+        throw new Error(`Failed to query database: ${fallbackError.message}`)
+      }
+      
+      if (!fallbackData || fallbackData.length === 0) {
+        return []
+      }
+      
+      // Return fallback results without similarity scores
+      return fallbackData.map((chunk: any) => ({
+        content: chunk.content,
+        pageNumber: chunk.page_number ?? undefined,
+        weekNumber: chunk.week_number ?? undefined,
+        topic: chunk.topic ?? undefined,
+        contentType: (chunk.content_type as 'policy' | 'concept') || 'policy',
+        score: 0.85, // Default score for mock mode (high enough to pass threshold)
+        metadata: chunk.metadata || {},
+      }))
+    }
+    
+    // Try to get embeddings for vector search
+    let embeddings
+    try {
+      embeddings = getEmbeddings()
+    } catch (embedError) {
+      // If embeddings fail (e.g., API key not set), fall back to simple query
+      console.warn('[Retrieval] Failed to get embeddings, falling back to simple query:', embedError)
+      
+      let queryBuilder = supabaseClient
+        .from('course_content')
+        .select('id, content, page_number, week_number, topic, content_type, metadata')
+        .eq('course_id', options.courseId)
+        .limit(limit)
+      
+      if (options.contentType) {
+        queryBuilder = queryBuilder.eq('content_type', options.contentType)
+      }
+      
+      const { data: fallbackData, error: fallbackError } = await queryBuilder
+      
+      if (fallbackError) {
+        throw new Error(`Failed to query database: ${fallbackError.message}`)
+      }
+      
+      if (!fallbackData || fallbackData.length === 0) {
+        return []
+      }
+      
+      return fallbackData.map((chunk: any) => ({
+        content: chunk.content,
+        pageNumber: chunk.page_number ?? undefined,
+        weekNumber: chunk.week_number ?? undefined,
+        topic: chunk.topic ?? undefined,
+        contentType: (chunk.content_type as 'policy' | 'concept') || 'policy',
+        score: 0.5, // Default score for fallback
+        metadata: chunk.metadata || {},
+      }))
+    }
     
     // Generate embedding for the query
     const queryEmbedding = await embeddings.embedQuery(query)
@@ -41,7 +118,7 @@ export async function retrieveRelevantChunks(
     })
     
     if (error) {
-      // Fallback: if RPC function doesn't exist, log warning and return empty
+      // Fallback: if RPC function doesn't exist, log warning and use simple query
       console.warn('Vector search RPC function not available, falling back to simple query:', error.message)
       
       // Fallback query (without vector search)
@@ -57,8 +134,12 @@ export async function retrieveRelevantChunks(
       
       const { data: fallbackData, error: fallbackError } = await queryBuilder
       
-      if (fallbackError || !fallbackData) {
-        throw new Error(`Failed to query database: ${fallbackError?.message || 'Unknown error'}`)
+      if (fallbackError) {
+        throw new Error(`Failed to query database: ${fallbackError.message}`)
+      }
+      
+      if (!fallbackData || fallbackData.length === 0) {
+        return []
       }
       
       // Return fallback results without similarity scores

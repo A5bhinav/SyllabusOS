@@ -146,10 +146,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Sort by count and get top 3
+    // Sort by count and get top 5 (for better visualization)
     const sortedMessages = Array.from(messageCounts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
+      .slice(0, 5)
 
     const topConfusions = sortedMessages.map(([key, count]) => ({
       topic: key.length > 50 ? key.substring(0, 50) + '...' : key,
@@ -157,12 +157,17 @@ export async function GET(request: NextRequest) {
       examples: messageExamples.get(key) || [],
     }))
 
-    // Calculate daily trends (last 7 days)
+    // Get most confused topic (top confusion)
+    const mostConfusedTopic = topConfusions.length > 0 
+      ? topConfusions[0].topic 
+      : null
+
+    // Calculate daily trends (last 14 days for better visualization)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     const dailyTrends = []
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 13; i >= 0; i--) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
 
@@ -221,6 +226,7 @@ export async function GET(request: NextRequest) {
         totalQueriesToday,
         escalationsPending: escalationsPending || 0,
         avgResponseTime: 0, // Would need to track response times to calculate this
+        mostConfusedTopic: mostConfusedTopic || undefined,
       },
     }
 

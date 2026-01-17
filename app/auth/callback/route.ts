@@ -62,7 +62,8 @@ export async function GET(request: NextRequest) {
       if (defaultRole === 'professor') {
         return NextResponse.redirect(new URL('/onboarding', requestUrl.origin))
       } else {
-        return NextResponse.redirect(new URL('/student/chat', requestUrl.origin))
+        // Student - redirect to student dashboard
+        return NextResponse.redirect(new URL('/student', requestUrl.origin))
       }
     }
 

@@ -4,7 +4,19 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default async function Home() {
+type HomeProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function Home({ searchParams }: HomeProps) {
+  const params = await searchParams
+  const code = params.code as string | undefined
+  
+  // If there's an auth code in the URL (from magic link), redirect to callback route
+  if (code) {
+    redirect(`/auth/callback?code=${code}`)
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getEscalations, resolveEscalation, updateEscalationResponse } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { CheckCircle2, Clock, Mail, User, MessageSquare, Send } from 'lucide-react'
+import { CheckCircle2, Clock, Mail, User, MessageSquare, Send, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
+import { getCategoryColor, type EscalationCategory } from '@/lib/utils/escalation-categorizer'
 
 export function EscalationQueue() {
   const [escalations, setEscalations] = useState<Escalation[]>([])
@@ -17,6 +18,8 @@ export function EscalationQueue() {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [responseTexts, setResponseTexts] = useState<Record<string, string>>({})
   const [submittingResponse, setSubmittingResponse] = useState<string | null>(null)
+  const [suggestedResponses, setSuggestedResponses] = useState<Record<string, string>>({})
+  const [loadingSuggestions, setLoadingSuggestions] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     loadEscalations()
@@ -58,6 +61,43 @@ export function EscalationQueue() {
     }
   }
 
+  async function handleGetSuggestion(escalationId: string, query: string, category: string) {
+    try {
+      setLoadingSuggestions(prev => ({ ...prev, [escalationId]: true }))
+      // Find the escalation to get courseId
+      const escalation = escalations.find(e => e.id === escalationId)
+      const response = await fetch('/api/escalations/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query, 
+          category,
+          courseId: escalation?.courseId,
+          escalationId,
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to get suggestion')
+      }
+      
+      const data = await response.json()
+      setSuggestedResponses(prev => ({
+        ...prev,
+        [escalationId]: data.suggestion,
+      }))
+    } catch (err) {
+      console.error('Error getting suggestion:', err)
+      setError('Failed to generate AI suggestion')
+    } finally {
+      setLoadingSuggestions(prev => {
+        const next = { ...prev }
+        delete next[escalationId]
+        return next
+      })
+    }
+  }
+
   async function handleSubmitResponse(id: string) {
     const response = responseTexts[id]?.trim()
     if (!response) {
@@ -67,8 +107,13 @@ export function EscalationQueue() {
     try {
       setSubmittingResponse(id)
       await updateEscalationResponse(id, response, 'resolved')
-      // Clear the response text
+      // Clear the response text and suggestion
       setResponseTexts(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      setSuggestedResponses(prev => {
         const next = { ...prev }
         delete next[id]
         return next
@@ -153,7 +198,26 @@ export function EscalationQueue() {
                     )}
                     
                     <div className="pt-2">
-                      <p className="text-sm font-medium mb-1">Query:</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium">Query:</p>
+                        {escalation.category && (
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              getCategoryColor(escalation.category as EscalationCategory) === 'blue'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                : getCategoryColor(escalation.category as EscalationCategory) === 'red'
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                : getCategoryColor(escalation.category as EscalationCategory) === 'yellow'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                : getCategoryColor(escalation.category as EscalationCategory) === 'green'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                            }`}
+                          >
+                            {escalation.category}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                         "{escalation.query}"
                       </p>
@@ -177,6 +241,67 @@ export function EscalationQueue() {
                 
                 {!escalation.response ? (
                   <div className="space-y-2">
+                    {suggestedResponses[escalation.id] && !responseTexts[escalation.id] && (
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">AI Suggested Response:</p>
+                        </div>
+                        <p className="text-sm text-blue-800 dark:text-blue-200 bg-white dark:bg-gray-900 p-2 rounded border border-blue-200 dark:border-blue-700">
+                          {suggestedResponses[escalation.id]}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setResponseTexts(prev => ({
+                                ...prev,
+                                [escalation.id]: suggestedResponses[escalation.id]
+                              }))
+                            }}
+                            className="text-xs"
+                          >
+                            Use This
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSuggestedResponses(prev => {
+                                const next = { ...prev }
+                                delete next[escalation.id]
+                                return next
+                              })
+                            }}
+                            className="text-xs"
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Your Response:</label>
+                      {!suggestedResponses[escalation.id] && !loadingSuggestions[escalation.id] && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleGetSuggestion(escalation.id, escalation.query, escalation.category || 'Other')}
+                          className="text-xs h-7"
+                          disabled={loadingSuggestions[escalation.id]}
+                        >
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Get AI Suggestion
+                        </Button>
+                      )}
+                      {loadingSuggestions[escalation.id] && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <LoadingSpinner size="sm" />
+                          Generating...
+                        </span>
+                      )}
+                    </div>
                     <Textarea
                       placeholder="Type your response to the student..."
                       value={responseTexts[escalation.id] || ''}

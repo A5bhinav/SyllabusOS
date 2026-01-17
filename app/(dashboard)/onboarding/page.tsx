@@ -10,9 +10,11 @@ import { LoadDemoButton } from '@/components/shared/LoadDemoButton'
 import { uploadFiles } from '@/lib/api/upload'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [syllabusFile, setSyllabusFile] = useState<File | null>(null)
   const [scheduleFile, setScheduleFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -26,7 +28,13 @@ export default function OnboardingPage() {
 
   const handleUpload = async () => {
     if (!syllabusFile || !scheduleFile) {
-      setError('Please select both a syllabus PDF and a schedule file')
+      const errorMsg = 'Please select both a syllabus PDF and a schedule file'
+      setError(errorMsg)
+      toast({
+        title: 'Upload Error',
+        description: errorMsg,
+        variant: 'destructive',
+      })
       return
     }
 
@@ -60,6 +68,11 @@ export default function OnboardingPage() {
           chunksCreated: response.chunksCreated,
           scheduleEntries: response.scheduleEntries,
         })
+        
+        toast({
+          title: 'Upload Successful!',
+          description: `Created ${response.chunksCreated} content chunks and ${response.scheduleEntries} schedule entries.`,
+        })
 
         // Get user role to determine redirect destination
         const supabase = createClient()
@@ -88,12 +101,23 @@ export default function OnboardingPage() {
         }
       } else {
         setUploadProgress(0)
-        setError(response.error || 'Upload failed')
+        const errorMsg = response.error || 'Upload failed'
+        setError(errorMsg)
+        toast({
+          title: 'Upload Failed',
+          description: errorMsg,
+          variant: 'destructive',
+        })
       }
     } catch (err: any) {
       setUploadProgress(0)
       const errorMessage = err.response?.data?.error || err.message || 'Failed to upload files'
       setError(errorMessage)
+      toast({
+        title: 'Upload Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }

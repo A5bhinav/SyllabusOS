@@ -10,8 +10,10 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getAnnouncements, updateAnnouncement } from '@/lib/api/announcements'
 import type { Announcement, UpdateAnnouncementRequest } from '@/types/api'
 import { Check, Edit2, X, Calendar } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export function AnnouncementDrafts() {
+  const { toast } = useToast()
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,9 +47,19 @@ export function AnnouncementDrafts() {
       setSaving(true)
       await updateAnnouncement(id, { status: 'published' })
       await loadAnnouncements()
+      toast({
+        title: 'Announcement Published',
+        description: 'The announcement has been published successfully.',
+      })
     } catch (err) {
       console.error('Error approving announcement:', err)
-      setError('Failed to approve announcement')
+      const errorMsg = 'Failed to approve announcement'
+      setError(errorMsg)
+      toast({
+        title: 'Approval Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      })
     } finally {
       setSaving(false)
     }
@@ -75,9 +87,19 @@ export function AnnouncementDrafts() {
       setEditTitle('')
       setEditContent('')
       await loadAnnouncements()
+      toast({
+        title: 'Announcement Updated',
+        description: 'The announcement has been updated successfully.',
+      })
     } catch (err) {
       console.error('Error updating announcement:', err)
-      setError('Failed to update announcement')
+      const errorMsg = 'Failed to update announcement'
+      setError(errorMsg)
+      toast({
+        title: 'Update Failed',
+        description: errorMsg,
+        variant: 'destructive',
+      })
     } finally {
       setSaving(false)
     }

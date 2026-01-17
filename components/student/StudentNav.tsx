@@ -22,6 +22,7 @@ export function StudentNav() {
   const pathname = usePathname()
   const [signingOut, setSigningOut] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [hasEnrollments, setHasEnrollments] = useState<boolean | null>(null)
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -43,7 +44,39 @@ export function StudentNav() {
     }
   }
 
-  const navItems = [
+  // Check enrollments on mount
+  useEffect(() => {
+    async function checkEnrollments() {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          setHasEnrollments(false)
+          return
+        }
+
+        const { data: enrollments, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select('id')
+          .eq('student_id', user.id)
+          .limit(1)
+
+        if (enrollmentsError && enrollmentsError.code !== 'PGRST116') {
+          console.error('Error checking enrollments:', enrollmentsError)
+        }
+
+        setHasEnrollments((enrollments && enrollments.length > 0) || false)
+      } catch (err) {
+        console.error('Error checking enrollments:', err)
+        setHasEnrollments(false)
+      }
+    }
+
+    checkEnrollments()
+  }, [])
+
+  const baseNavItems = [
     {
       label: 'My Classes',
       href: '/student',
@@ -61,6 +94,7 @@ export function StudentNav() {
       href: '/student/announcements',
       icon: Megaphone,
       active: pathname === '/student/announcements',
+      requiresEnrollment: true,
     },
     {
       label: 'My Escalations',
@@ -69,6 +103,14 @@ export function StudentNav() {
       active: pathname === '/student/escalations',
     },
   ]
+
+  // Filter nav items based on enrollments
+  const navItems = baseNavItems.filter(item => {
+    if (item.requiresEnrollment) {
+      return hasEnrollments === true
+    }
+    return true
+  })
 
   // Close mobile menu when route changes
   useEffect(() => {

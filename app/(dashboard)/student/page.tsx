@@ -169,6 +169,13 @@ export default function StudentHomePage() {
         </p>
       </div>
 
+      {/* Announcements Section - Only show if student is enrolled in courses */}
+      {courses.length > 0 && (
+        <div className="mb-8">
+          <Announcements showOnlyLatest={true} />
+        </div>
+      )}
+
       {error && (
         <Card className="mb-6 border-destructive">
           <CardContent className="pt-6">
@@ -204,12 +211,16 @@ export default function StudentHomePage() {
         </Card>
       ) : (
         <>
-          {/* Announcements Section - Show only most recent week */}
-          <div className="mb-8">
-            <Announcements showOnlyLatest={true} />
+          {/* Courses Grid with Add Class Button */}
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Enrolled Courses</h2>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/student/browse">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Class
+              </Link>
+            </Button>
           </div>
-
-          {/* Courses Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map((course) => (
               <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>

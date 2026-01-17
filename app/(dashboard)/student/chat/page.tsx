@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChatInterface } from '@/components/student/ChatInterface'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function StudentChatPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [courseId, setCourseId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -78,7 +79,7 @@ export default function StudentChatPage() {
     }
 
     loadUserData()
-  }, [router])
+  }, [router, searchParams])
 
   if (loading) {
     return (

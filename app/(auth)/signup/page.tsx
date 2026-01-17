@@ -147,7 +147,7 @@ export default function SignupPage() {
         if (userRole === 'professor') {
           router.push('/onboarding');
         } else {
-          router.push('/student/chat');
+          router.push('/student');
         }
       }
     } catch (err: any) {

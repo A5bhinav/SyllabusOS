@@ -122,82 +122,43 @@ export async function GET(request: NextRequest) {
       throw enrollmentsError
     }
 
-    // Get unique student IDs to fetch their profiles
-    const studentIds = [...new Set((enrollments || []).map((e: any) => e.student_id))]
-    
-    // If no enrollments, return empty array
-    if (studentIds.length === 0) {
-      return NextResponse.json([])
-    }
-    
-    // Fetch all student profiles at once
-    const { data: studentProfiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .in('id', studentIds)
-
-    // Log if profile fetch failed
-    if (profilesError) {
-      console.error('[Enrollments API] Error fetching profiles:', profilesError)
-    }
-
-    // Create a map for quick lookup
-    const profileMap = new Map(
-      (studentProfiles || []).map((p: any) => [p.id, p])
-    )
-
     // Transform response with profile data
+    // The profiles are already joined via the foreign key relationship in the query
+    // Use the joined data directly - it's already there!
     const response = (enrollments || []).map((e: any) => {
-      // Try to get profile from map first (from separate query), 
-      // then fallback to joined profiles data (from original query)
-      // Handle both array and object formats for joined data
-      let profile = profileMap.get(e.student_id)
+      // Access the joined profile data from the foreign key relationship
+      // The query already includes: profiles!enrollments_student_id_fkey (id, name, email)
+      // Supabase returns this as e.profiles (singular or array depending on relationship type)
+      let profile: any = null
       
-      if (!profile) {
-        // Handle joined profiles - could be array or object depending on Supabase join behavior
-        const joinedProfiles = e.profiles
-        if (Array.isArray(joinedProfiles) && joinedProfiles.length > 0) {
-          profile = joinedProfiles[0]
-        } else if (joinedProfiles && typeof joinedProfiles === 'object' && !Array.isArray(joinedProfiles)) {
-          profile = joinedProfiles
-        }
-      }
-
-      // Debug logging if profile not found or name is missing
-      if (!profile) {
-        console.warn('[Enrollments API] Profile not found for student_id:', e.student_id)
-        console.warn('[Enrollments API] Available profile IDs in map:', Array.from(profileMap.keys()))
-        console.warn('[Enrollments API] Enrollment student_id:', e.student_id, 'Type:', typeof e.student_id)
-        console.warn('[Enrollments API] Joined profiles data:', e.profiles)
-      } else {
-        // Log profile data to help debug
-        if (!profile.name || (typeof profile.name === 'string' && profile.name.trim() === '')) {
-          console.warn('[Enrollments API] Profile found but name is empty/null for student_id:', e.student_id)
-          console.warn('[Enrollments API] Profile data:', { 
-            id: profile.id, 
-            name: profile.name, 
-            email: profile.email,
-            nameType: typeof profile.name,
-            nameLength: profile.name?.length 
-          })
-        } else {
-          console.log('[Enrollments API] Profile found with name for student_id:', e.student_id, 'Name:', profile.name)
+      // Handle the joined profiles data structure
+      const joinedProfile = e.profiles
+      
+      if (joinedProfile) {
+        // Check if it's an array (one-to-many relationship representation)
+        if (Array.isArray(joinedProfile) && joinedProfile.length > 0) {
+          profile = joinedProfile[0] // Take the first one
+        } 
+        // Check if it's an object (one-to-one relationship representation)
+        else if (typeof joinedProfile === 'object' && joinedProfile !== null) {
+          profile = joinedProfile
         }
       }
       
-      // Use profile name, or fallback to email prefix if name is missing or empty
-      // Handle null, undefined, and empty string cases
+      // Extract student name directly from the joined profile
       let studentName: string | null = null
       
-      if (profile) {
-        // Try name first (trimmed)
-        const trimmedName = profile.name?.trim()
-        if (trimmedName && trimmedName.length > 0) {
+      if (profile && profile.name) {
+        // Use the name from the joined profile - trim whitespace
+        const trimmedName = String(profile.name).trim()
+        if (trimmedName.length > 0) {
           studentName = trimmedName
-        } else if (profile.email) {
-          // Fallback to email prefix
-          studentName = profile.email.split('@')[0]
         }
+      }
+      
+      // Fallback to email prefix if name is missing or empty
+      if (!studentName && profile && profile.email) {
+        studentName = profile.email.split('@')[0]
       }
       
       return {

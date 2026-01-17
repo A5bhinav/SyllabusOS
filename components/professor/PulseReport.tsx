@@ -5,23 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getPulseReport } from '@/lib/api/pulse'
 import type { PulseResponse } from '@/types/api'
-import { TrendingUp, AlertCircle, MessageSquare, Clock, Zap } from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts'
-import { format } from 'date-fns'
+import { TrendingUp, AlertCircle, MessageSquare, Clock, PieChart } from 'lucide-react'
 
 export function PulseReport() {
   const [pulseData, setPulseData] = useState<PulseResponse | null>(null)
@@ -114,12 +98,59 @@ export function PulseReport() {
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-lg border bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10 p-4">
+          {/* Key Metrics - Number Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-lg border p-4 bg-background">
               <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Total Queries</span>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Total Queries Today</span>
+              </div>
+              <p className="text-2xl font-bold">{pulseData.metrics?.totalQueriesToday || 0}</p>
+            </div>
+            
+            <div className={`rounded-lg border p-4 ${
+              (pulseData.metrics?.escalationsPending || 0) > 0 
+                ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800' 
+                : 'bg-background'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className={`h-4 w-4 ${
+                  (pulseData.metrics?.escalationsPending || 0) > 0 
+                    ? 'text-yellow-600 dark:text-yellow-400' 
+                    : 'text-muted-foreground'
+                }`} />
+                <span className="text-xs text-muted-foreground">Escalations Pending</span>
+              </div>
+              <p className="text-2xl font-bold">{pulseData.metrics?.escalationsPending || 0}</p>
+            </div>
+            
+            <div className="rounded-lg border p-4 bg-background">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Avg Response Time</span>
+              </div>
+              <p className="text-2xl font-bold">
+                {pulseData.metrics?.avgResponseTime ? `${pulseData.metrics.avgResponseTime}ms` : 'N/A'}
+              </p>
+            </div>
+            
+            <div className="rounded-lg border p-4 bg-primary/5 border-primary/20">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted-foreground">Most Confused Topic</span>
+              </div>
+              <p className="text-sm font-medium line-clamp-2">
+                {pulseData.metrics?.mostConfusedTopic || 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          {/* Overall Statistics */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg border p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Total Queries (All Time)</span>
               </div>
               <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{pulseData.totalQueries}</p>
               {metrics.totalQueriesToday > 0 && (
@@ -128,52 +159,11 @@ export function PulseReport() {
                 </p>
               )}
             </div>
-
-            <div className="rounded-lg border bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/20 dark:to-amber-900/10 p-4">
+            
+            <div className="rounded-lg border p-4">
               <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Escalations</span>
-              </div>
-              <p className="text-3xl font-bold text-amber-900 dark:text-amber-100">
-                {pulseData.escalationCount}
-              </p>
-              {metrics.escalationsPending > 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  {metrics.escalationsPending} pending
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-lg border bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <span className="text-xs font-medium text-green-700 dark:text-green-300">Queries Today</span>
-              </div>
-              <p className="text-3xl font-bold text-green-900 dark:text-green-100">
-                {metrics.totalQueriesToday}
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">Last 24 hours</p>
-            </div>
-
-            <div className="rounded-lg border bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/20 dark:to-purple-900/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Avg Response</span>
-              </div>
-              <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">
-                {metrics.avgResponseTime > 0 ? `${metrics.avgResponseTime}s` : 'N/A'}
-              </p>
-              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Response time</p>
-            </div>
-          </div>
-
-          {/* Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bar Chart - Top 5 Most Asked Topics */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <h4 className="font-semibold text-sm">Top 5 Most Asked Topics</h4>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Total Escalations</span>
               </div>
               {barChartData.length === 0 ? (
                 <div className="flex items-center justify-center h-[300px] rounded-lg border bg-muted/50">
@@ -258,88 +248,57 @@ export function PulseReport() {
             </div>
           </div>
 
-          {/* Line Chart - Questions Over Time */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <h4 className="font-semibold text-sm">Questions Over Time (Last 7 Days)</h4>
-            </div>
-            {lineChartData.length === 0 ? (
-              <div className="flex items-center justify-center h-[300px] rounded-lg border bg-muted/50">
-                <p className="text-sm text-muted-foreground">No trend data available yet.</p>
-              </div>
-            ) : (
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis
-                      dataKey="date"
-                      className="text-xs"
-                      tick={{ fill: 'currentColor' }}
-                    />
-                    <YAxis className="text-xs" tick={{ fill: 'currentColor' }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '6px',
-                      }}
-                      formatter={(value: number | undefined) => [`${value ?? 0} queries`, 'Queries']}
-                      labelFormatter={(label) => {
-                        const data = lineChartData.find((d) => d.date === label)
-                        return data?.fullDate ? format(new Date(data.fullDate), 'MMMM d, yyyy') : label
-                      }}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="queries"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={{ fill: '#3b82f6', r: 4 }}
-                      activeDot={{ r: 6 }}
-                      name="Queries"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
-          {/* Top Confusions List (Fallback/Documentation) */}
-          {pulseData.topConfusions.length > 0 && (
-            <div className="pt-4 border-t">
+          {/* Query Distribution */}
+          {pulseData.queryDistribution && (
+            <div>
               <div className="flex items-center gap-2 mb-3">
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <h4 className="font-semibold text-sm">Top Confusions Details</h4>
+                <PieChart className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-semibold text-sm">Query Distribution</h4>
               </div>
-              <ul className="space-y-2">
-                {pulseData.topConfusions.slice(0, 5).map((confusion, index) => (
-                  <li key={index} className="rounded-lg border p-3 text-sm">
-                    <div className="flex items-start gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary flex-shrink-0">
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">{confusion.topic}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {confusion.count} {confusion.count === 1 ? 'question' : 'questions'}
-                        </p>
-                        {confusion.examples.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {confusion.examples.slice(0, 2).map((example, i) => (
-                              <p key={i} className="text-xs text-muted-foreground italic truncate">
-                                • &quot;{example}&quot;
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border p-3 bg-blue-50 dark:bg-blue-950/20">
+                  <p className="text-xs text-muted-foreground mb-1">POLICY</p>
+                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                    {pulseData.queryDistribution.POLICY}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3 bg-green-50 dark:bg-green-950/20">
+                  <p className="text-xs text-muted-foreground mb-1">CONCEPT</p>
+                  <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                    {pulseData.queryDistribution.CONCEPT}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3 bg-orange-50 dark:bg-orange-950/20">
+                  <p className="text-xs text-muted-foreground mb-1">ESCALATE</p>
+                  <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
+                    {pulseData.queryDistribution.ESCALATE}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Daily Trends Info */}
+          {pulseData.dailyTrends && pulseData.dailyTrends.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-semibold text-sm">Questions Over Time (Last 14 Days)</h4>
+              </div>
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <p className="text-sm text-muted-foreground">
+                  Data available for visualization. Total queries across 14 days: {' '}
+                  <span className="font-semibold">
+                    {pulseData.dailyTrends.reduce((sum, day) => sum + day.count, 0)}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Average per day: {' '}
+                  <span className="font-semibold">
+                    {Math.round(pulseData.dailyTrends.reduce((sum, day) => sum + day.count, 0) / pulseData.dailyTrends.length)}
+                  </span>
+                </p>
+              </div>
             </div>
           )}
         </div>

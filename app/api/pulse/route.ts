@@ -84,13 +84,18 @@ export async function GET(request: NextRequest) {
       } else {
         // No courses, return empty report
         return NextResponse.json({
-          topConfusions: [],
           totalQueries: 0,
           escalationCount: 0,
+          dailyTrends: [],
           queryDistribution: {
             POLICY: 0,
             CONCEPT: 0,
             ESCALATE: 0,
+          },
+          metrics: {
+            totalQueriesToday: 0,
+            escalationsPending: 0,
+            avgResponseTime: 0,
           },
         } as PulseResponse)
       }
@@ -117,49 +122,23 @@ export async function GET(request: NextRequest) {
       ESCALATE: chatLogs?.filter((log) => log.agent === 'ESCALATE').length || 0,
     }
 
-    // Analyze top confusions
-    // Group messages by similarity (simple keyword matching for now)
-    // In a production system, this could use more sophisticated NLP
+    // Get most confused topic (simplified - just find the most common message pattern)
+    // This is a simplified approach - in production, you might use more sophisticated NLP
     const messageCounts = new Map<string, number>()
-    const messageExamples = new Map<string, string[]>()
-
+    
     chatLogs?.forEach((log) => {
       if (!log.message) return
-
       const message = log.message.toLowerCase().trim()
-
-      // Normalize message (remove extra whitespace, punctuation)
       const normalized = message.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ')
-
-      // Group similar messages (exact match for now, could be enhanced with similarity)
-      const key = normalized
-
-      messageCounts.set(key, (messageCounts.get(key) || 0) + 1)
-
-      // Store example (first occurrence)
-      if (!messageExamples.has(key)) {
-        messageExamples.set(key, [])
-      }
-      const examples = messageExamples.get(key)!
-      if (examples.length < 3 && log.message !== examples[0]) {
-        examples.push(log.message)
-      }
+      messageCounts.set(normalized, (messageCounts.get(normalized) || 0) + 1)
     })
 
-    // Sort by count and get top 5 (for better visualization)
+    // Get most confused topic (most common query pattern)
     const sortedMessages = Array.from(messageCounts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-
-    const topConfusions = sortedMessages.map(([key, count]) => ({
-      topic: key.length > 50 ? key.substring(0, 50) + '...' : key,
-      count,
-      examples: messageExamples.get(key) || [],
-    }))
-
-    // Get most confused topic (top confusion)
-    const mostConfusedTopic = topConfusions.length > 0 
-      ? topConfusions[0].topic 
+    
+    const mostConfusedTopic = sortedMessages.length > 0 
+      ? (sortedMessages[0][0].length > 50 ? sortedMessages[0][0].substring(0, 50) + '...' : sortedMessages[0][0])
       : null
 
     // Calculate daily trends (last 14 days for better visualization)
@@ -217,7 +196,6 @@ export async function GET(request: NextRequest) {
     const { count: escalationsPending } = await escalationsQuery
 
     const response: PulseResponse = {
-      topConfusions,
       totalQueries,
       escalationCount,
       dailyTrends,

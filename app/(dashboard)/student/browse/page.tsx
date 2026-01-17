@@ -115,9 +115,16 @@ export default function BrowseCoursesPage() {
                     </Link>
                   </Button>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    Contact the professor to enroll
-                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                  >
+                    <Link href={`/student/enroll/${course.id}`}>
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Enroll in Course
+                    </Link>
+                  </Button>
                 )}
               </CardContent>
             </Card>

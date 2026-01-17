@@ -9,6 +9,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { AnnouncementDrafts } from '@/components/professor/AnnouncementDrafts'
 import { EscalationQueue } from '@/components/professor/EscalationQueue'
 import { PulseReport } from '@/components/professor/PulseReport'
+import { CourseManagement } from '@/components/professor/CourseManagement'
+import { EnrolledStudents } from '@/components/professor/EnrolledStudents'
 import { triggerConductor } from '@/lib/api/conductor'
 import { getCourses } from '@/lib/api/courses'
 import type { Course } from '@/types/api'
@@ -250,6 +252,11 @@ export default function DashboardContent() {
         <AnnouncementDrafts />
         <EscalationQueue />
         <PulseReport />
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <CourseManagement />
+        <EnrolledStudents />
       </div>
     </div>
   )

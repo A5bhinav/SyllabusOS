@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     // Check if profile already exists
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, role, name')
       .eq('id', userId)
       .maybeSingle()
 

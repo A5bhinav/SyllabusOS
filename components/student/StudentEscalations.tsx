@@ -21,9 +21,11 @@ export function StudentEscalations() {
     try {
       setLoading(true)
       setError(null)
-      const data = await getEscalations()
+      const response = await getEscalations()
+      // Handle new response format with escalations array
+      const escalationsList = response.escalations || []
       // Sort by created date, newest first
-      const sorted = data.sort((a, b) => 
+      const sorted = escalationsList.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
       setEscalations(sorted)

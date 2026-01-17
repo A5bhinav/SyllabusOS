@@ -20,9 +20,24 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .select('id')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
     if (existing) {
+      // Profile exists, but update role if provided and different
+      if (role && existing.role !== role) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ role, name: name || existing.name, email })
+          .eq('id', userId)
+        
+        if (updateError) {
+          console.error('Profile update error:', updateError)
+          return NextResponse.json(
+            { error: updateError.message },
+            { status: 500 }
+          )
+        }
+      }
       return NextResponse.json({ success: true, message: 'Profile already exists' })
     }
 

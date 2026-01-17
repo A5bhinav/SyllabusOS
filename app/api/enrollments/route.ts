@@ -122,6 +122,12 @@ export async function GET(request: NextRequest) {
       throw enrollmentsError
     }
 
+    // Debug: Log the raw enrollment data structure
+    if (enrollments && enrollments.length > 0) {
+      console.log('[Enrollments API] Raw enrollment data sample:', JSON.stringify(enrollments[0], null, 2))
+      console.log('[Enrollments API] Enrollment keys:', Object.keys(enrollments[0]))
+    }
+
     // Transform response with profile data
     // The profiles are already joined via the foreign key relationship in the query
     // Use the joined data directly - it's already there!
@@ -131,6 +137,16 @@ export async function GET(request: NextRequest) {
       // Supabase returns this as e.profiles (singular or array depending on relationship type)
       let profile: any = null
       
+      // Debug: Log what we're getting
+      console.log('[Enrollments API] Processing enrollment:', {
+        id: e.id,
+        student_id: e.student_id,
+        has_profiles: !!e.profiles,
+        profiles_type: typeof e.profiles,
+        profiles_is_array: Array.isArray(e.profiles),
+        profiles_value: e.profiles
+      })
+      
       // Handle the joined profiles data structure
       const joinedProfile = e.profiles
       
@@ -138,27 +154,41 @@ export async function GET(request: NextRequest) {
         // Check if it's an array (one-to-many relationship representation)
         if (Array.isArray(joinedProfile) && joinedProfile.length > 0) {
           profile = joinedProfile[0] // Take the first one
+          console.log('[Enrollments API] Profile from array:', profile)
         } 
         // Check if it's an object (one-to-one relationship representation)
-        else if (typeof joinedProfile === 'object' && joinedProfile !== null) {
+        else if (typeof joinedProfile === 'object' && joinedProfile !== null && !Array.isArray(joinedProfile)) {
           profile = joinedProfile
+          console.log('[Enrollments API] Profile from object:', profile)
         }
+      } else {
+        console.warn('[Enrollments API] No joined profile found for student_id:', e.student_id)
+        // Try to fetch profile separately as fallback
+        // This should not be necessary if the join works correctly
       }
       
       // Extract student name directly from the joined profile
       let studentName: string | null = null
       
-      if (profile && profile.name) {
-        // Use the name from the joined profile - trim whitespace
-        const trimmedName = String(profile.name).trim()
-        if (trimmedName.length > 0) {
-          studentName = trimmedName
+      if (profile) {
+        console.log('[Enrollments API] Profile found:', { id: profile.id, name: profile.name, email: profile.email })
+        
+        if (profile.name) {
+          // Use the name from the joined profile - trim whitespace
+          const trimmedName = String(profile.name).trim()
+          if (trimmedName.length > 0) {
+            studentName = trimmedName
+            console.log('[Enrollments API] Using name:', studentName)
+          }
         }
-      }
-      
-      // Fallback to email prefix if name is missing or empty
-      if (!studentName && profile && profile.email) {
-        studentName = profile.email.split('@')[0]
+        
+        // Fallback to email prefix if name is missing or empty
+        if (!studentName && profile.email) {
+          studentName = profile.email.split('@')[0]
+          console.log('[Enrollments API] Using email prefix:', studentName)
+        }
+      } else {
+        console.warn('[Enrollments API] No profile available for enrollment:', e.id)
       }
       
       return {
@@ -171,6 +201,8 @@ export async function GET(request: NextRequest) {
         enrolledAt: e.enrolled_at,
       }
     })
+    
+    console.log('[Enrollments API] Final response:', JSON.stringify(response, null, 2))
 
     return NextResponse.json(response)
   } catch (error) {

@@ -77,6 +77,9 @@ export interface Escalation {
   category?: string | null
   createdAt: string
   resolvedAt?: string | null
+  response?: string | null
+  respondedAt?: string | null
+  respondedBy?: string | null
 }
 
 export interface ConductorRequest {

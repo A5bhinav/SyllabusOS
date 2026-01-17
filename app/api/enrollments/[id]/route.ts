@@ -28,15 +28,58 @@ export async function DELETE(
     }
 
     // Verify user is a professor
+    // Try maybeSingle() first to avoid errors if profile doesn't exist
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, email, name')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (profileError || !profile || profile.role !== 'professor') {
+    // Debug logging - this will help us understand what's happening
+    console.log('[Enrollments DELETE API] Profile check:', {
+      userId: user.id,
+      userEmail: user.email,
+      profileFound: !!profile,
+      profileRole: profile?.role,
+      profileError: profileError?.message,
+      profileErrorCode: profileError?.code,
+      profileErrorDetails: profileError?.details,
+    })
+
+    if (profileError) {
+      console.error('[Enrollments DELETE API] Profile query error:', {
+        error: profileError,
+        userId: user.id,
+        email: user.email,
+        code: profileError.code,
+        message: profileError.message,
+        details: profileError.details,
+        hint: profileError.hint,
+      })
+    }
+
+    if (!profile) {
+      console.error('[Enrollments DELETE API] Profile not found in database for user:', user.id)
       return NextResponse.json(
-        { error: 'Forbidden - only professors can remove enrollments' },
+        { 
+          error: 'Profile not found. Please ensure your account is set up correctly.',
+          details: 'Your profile could not be found in the database. This may be a setup issue.'
+        },
+        { status: 403 }
+      )
+    }
+
+    if (profile.role !== 'professor') {
+      console.warn('[Enrollments DELETE API] User role mismatch:', {
+        userId: user.id,
+        currentRole: profile.role,
+        expectedRole: 'professor',
+      })
+      return NextResponse.json(
+        { 
+          error: 'Forbidden - only professors can remove enrollments',
+          details: `Your account role is '${profile.role}', but you need 'professor' role to perform this action.`
+        },
         { status: 403 }
       )
     }

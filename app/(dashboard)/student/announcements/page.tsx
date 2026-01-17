@@ -134,21 +134,27 @@ export default function AnnouncementsPage() {
     return (
       <>
         <StudentNav />
-        <div className="container mx-auto py-8 px-4 max-w-4xl">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Megaphone className="h-5 w-5" />
-                Announcements
-              </CardTitle>
-              <CardDescription>Important updates from your professor</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center py-8">
-                <LoadingSpinner size="lg" />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+          <div className="container mx-auto py-8 px-4 max-w-5xl">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-3xl">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Megaphone className="h-5 w-5 text-primary" />
+                  </div>
+                  Announcements
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Important updates from your professors
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-center py-16">
+                  <LoadingSpinner size="lg" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </>
     )
@@ -158,38 +164,46 @@ export default function AnnouncementsPage() {
     return (
       <>
         <StudentNav />
-        <div className="container mx-auto py-8 px-4 max-w-4xl">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Megaphone className="h-5 w-5" />
-                Announcements
-              </CardTitle>
-              <CardDescription>Important updates from your professor</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Megaphone className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Enrolled Courses</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  You need to be enrolled in at least one course to view announcements.
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <Button asChild variant="outline">
-                    <Link href="/student/browse">
-                      Browse Courses
-                    </Link>
-                  </Button>
-                  <Button asChild>
-                    <Link href="/student">
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to My Classes
-                    </Link>
-                  </Button>
+        <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+          <div className="container mx-auto py-8 px-4 max-w-5xl">
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-3xl">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Megaphone className="h-5 w-5 text-primary" />
+                  </div>
+                  Announcements
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Important updates from your professors
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                    <Megaphone className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">No Enrolled Courses</h3>
+                  <p className="text-base text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
+                    You need to be enrolled in at least one course to view announcements.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button asChild variant="outline" size="lg">
+                      <Link href="/student/browse">
+                        Browse Courses
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" className="shadow-sm hover:shadow-md transition-shadow">
+                      <Link href="/student">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to My Classes
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </>
     )
@@ -198,56 +212,78 @@ export default function AnnouncementsPage() {
   return (
     <>
       <StudentNav />
-      <div className="container mx-auto py-8 px-4 max-w-4xl">
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Megaphone className="h-5 w-5" />
-                Announcements
-              </CardTitle>
-              <CardDescription>Important updates from your professor</CardDescription>
-            </div>
-            {announcements.length > 0 && (
-              <div className="flex gap-2">
-                <Button
-                  variant={sortBy === 'course' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSortBy('course')}
-                >
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  By Course
-                </Button>
-                <Button
-                  variant={sortBy === 'date' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSortBy('date')}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  By Date
-                </Button>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto py-8 px-4 max-w-5xl">
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="pb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-2">
+                  <CardTitle className="flex items-center gap-3 text-3xl">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Megaphone className="h-5 w-5 text-primary" />
+                    </div>
+                    Announcements
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Important updates from your professors
+                  </CardDescription>
+                </div>
+                {announcements.length > 0 && (
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      variant={sortBy === 'course' ? 'default' : 'outline'}
+                      size="default"
+                      onClick={() => setSortBy('course')}
+                      className="shadow-sm"
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      By Course
+                    </Button>
+                    <Button
+                      variant={sortBy === 'date' ? 'default' : 'outline'}
+                      size="default"
+                      onClick={() => setSortBy('date')}
+                      className="shadow-sm"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      By Date
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {error && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive flex items-start gap-2">
+                  <svg
+                    className="w-5 h-5 mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
 
-          {announcements.length === 0 ? (
-            <div className="text-center py-8">
-              <Megaphone className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                No announcements
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
+              {announcements.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                    <Megaphone className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">No announcements yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your professors haven&apos;t published any announcements yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-8">
               {(() => {
                 // Sort and group announcements
                 let sorted = [...announcements]
@@ -281,32 +317,37 @@ export default function AnnouncementsPage() {
                   }, {} as Record<string, AnnouncementWithCourse[]>)
 
                   return Object.entries(grouped).map(([courseName, courseAnnouncements]) => (
-                    <div key={courseName} className="space-y-4">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-primary" />
-                        {courseName}
-                      </h3>
-                      <div className="space-y-4 pl-7">
+                    <div key={courseName} className="space-y-5">
+                      <div className="flex items-center gap-3 pb-2 border-b">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <BookOpen className="h-4 w-4 text-primary" />
+                        </div>
+                        <h3 className="text-xl font-semibold">{courseName}</h3>
+                      </div>
+                      <div className="space-y-4 pl-11">
                         {courseAnnouncements.map((announcement) => (
                           <div
                             key={announcement.id}
-                            className="rounded-lg border p-4 space-y-3 hover:shadow-md transition-shadow"
+                            className="rounded-xl border-2 bg-card p-6 space-y-4 hover:shadow-lg transition-all duration-200 hover:border-primary/30"
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm font-medium text-muted-foreground">
-                                    Week {announcement.weekNumber}
-                                  </span>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 space-y-3">
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar className="h-4 w-4" />
+                                    <span className="font-medium">Week {announcement.weekNumber}</span>
+                                  </div>
                                   {announcement.publishedAt && (
-                                    <span className="text-xs text-muted-foreground">
-                                      • {format(new Date(announcement.publishedAt), 'MMM d, yyyy')}
-                                    </span>
+                                    <>
+                                      <span>•</span>
+                                      <span>{format(new Date(announcement.publishedAt), 'MMM d, yyyy')}</span>
+                                    </>
                                   )}
                                 </div>
-                                <h4 className="font-semibold text-lg mb-2">{announcement.title}</h4>
-                                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                <h4 className="font-semibold text-xl text-foreground leading-tight">
+                                  {announcement.title}
+                                </h4>
+                                <p className="text-base text-foreground/90 whitespace-pre-wrap leading-relaxed">
                                   {announcement.content}
                                 </p>
                               </div>
@@ -321,26 +362,31 @@ export default function AnnouncementsPage() {
                   return sorted.map((announcement) => (
                     <div
                       key={announcement.id}
-                      className="rounded-lg border p-4 space-y-3 hover:shadow-md transition-shadow"
+                      className="rounded-xl border-2 bg-card p-6 space-y-4 hover:shadow-lg transition-all duration-200 hover:border-primary/30"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {announcement.courseName || 'Unknown Course'}
-                            </span>
-                            <span className="text-sm font-medium text-muted-foreground">
-                              • Week {announcement.weekNumber}
-                            </span>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <BookOpen className="h-4 w-4" />
+                              <span className="font-medium">{announcement.courseName || 'Unknown Course'}</span>
+                            </div>
+                            <span>•</span>
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-4 w-4" />
+                              <span className="font-medium">Week {announcement.weekNumber}</span>
+                            </div>
                             {announcement.publishedAt && (
-                              <span className="text-xs text-muted-foreground">
-                                • {format(new Date(announcement.publishedAt), 'MMM d, yyyy')}
-                              </span>
+                              <>
+                                <span>•</span>
+                                <span>{format(new Date(announcement.publishedAt), 'MMM d, yyyy')}</span>
+                              </>
                             )}
                           </div>
-                          <h4 className="font-semibold text-lg mb-2">{announcement.title}</h4>
-                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                          <h4 className="font-semibold text-xl text-foreground leading-tight">
+                            {announcement.title}
+                          </h4>
+                          <p className="text-base text-foreground/90 whitespace-pre-wrap leading-relaxed">
                             {announcement.content}
                           </p>
                         </div>
@@ -349,10 +395,11 @@ export default function AnnouncementsPage() {
                   ))
                 }
               })()}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   )

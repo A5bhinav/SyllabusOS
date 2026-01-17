@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useOptimistic, useRef, useEffect, startTransition } from 'react'
+import { useState, useOptimistic, useRef, useEffect, startTransition, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -161,10 +162,11 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     }
   }, [optimisticMessages, isUserAtBottom, isLoadingHistory])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, suggestedText?: string) => {
     e.preventDefault()
+    const messageText = suggestedText || input.trim()
     
-    if (!input.trim() || isLoading) return
+    if (!messageText || isLoading) return
 
     // Check if user is at bottom before submitting
     // If they are, we'll auto-scroll. If not, don't force scroll.
@@ -182,7 +184,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
-      text: input.trim(),
+      text: messageText,
       role: 'user',
       timestamp: new Date(),
     }
@@ -197,7 +199,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
 
     try {
       const response = await sendChatMessage({
-        message: userMessage.text,
+        message: messageText,
         courseId,
         userId,
       })
@@ -221,6 +223,8 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         const withoutUser = prev.filter(msg => msg.id !== userMessage.id)
         return [...withoutUser, userMessage, assistantMessage]
       })
+      
+      // Clear any previous suggested follow-ups by resetting (they'll be generated from the new message)
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to send message. Please try again.')
       
@@ -231,39 +235,184 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     }
   }
 
+  // Generate suggested follow-up questions based on the last assistant message
+  const suggestedFollowUps = useMemo(() => {
+    if (optimisticMessages.length === 0 || isLoading) return []
+    
+    const lastAssistantMessage = [...optimisticMessages].reverse().find(msg => msg.role === 'assistant')
+    if (!lastAssistantMessage) return []
+    
+    const messageText = lastAssistantMessage.text.toLowerCase()
+    const suggestions: string[] = []
+    
+    // Generate context-aware suggestions
+    if (messageText.includes('midterm') || messageText.includes('final') || messageText.includes('exam')) {
+      suggestions.push('What topics are covered on the exam?')
+      suggestions.push('What is the exam format?')
+      suggestions.push('Can I see sample questions?')
+    } else if (messageText.includes('assignment') || messageText.includes('homework') || messageText.includes('project')) {
+      suggestions.push('When is the due date?')
+      suggestions.push('What are the requirements?')
+      suggestions.push('Where do I submit it?')
+    } else if (messageText.includes('week') || messageText.includes('schedule')) {
+      suggestions.push('What are the topics for this week?')
+      suggestions.push('Are there any readings?')
+      suggestions.push('What assignments are due?')
+    } else if (messageText.includes('grade') || messageText.includes('grading')) {
+      suggestions.push('How is the course graded?')
+      suggestions.push('What is the grading breakdown?')
+      suggestions.push('Can I check my current grade?')
+    } else {
+      // Generic follow-ups
+      suggestions.push('Can you tell me more about that?')
+      suggestions.push('What should I focus on?')
+      suggestions.push('Are there any related topics?')
+    }
+    
+    return suggestions.slice(0, 3) // Return max 3 suggestions
+  }, [optimisticMessages, isLoading])
+
+  function handleSuggestedFollowUp(question: string) {
+    // Create a synthetic event and call handleSubmit with the suggested text
+    const syntheticEvent = {
+      preventDefault: () => {},
+    } as React.FormEvent
+    
+    handleSubmit(syntheticEvent, question)
+  }
+
   return (
-    <div className="flex flex-col h-[600px] border rounded-lg bg-background overflow-hidden">
-      <ScrollArea className="flex-1 p-4 overflow-hidden" ref={scrollAreaRef}>
-        <div className="space-y-4">
+    <div className="flex flex-col h-[600px] bg-background overflow-hidden rounded-lg">
+      <ScrollArea className="flex-1 px-6 py-6 overflow-hidden" ref={scrollAreaRef}>
+        <div className="space-y-1">
           {isLoadingHistory ? (
-            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+            <div className="flex flex-col items-center justify-center h-full py-16 text-center">
               <LoadingSpinner size="lg" />
-              <p className="text-muted-foreground text-sm mt-4">
+              <p className="text-muted-foreground text-sm mt-4 font-medium">
                 Loading chat history...
               </p>
             </div>
           ) : optimisticMessages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-              <p className="text-muted-foreground text-sm">
-                Start a conversation by asking a question about your course.
+            <div className="flex flex-col items-center justify-center h-full py-16 text-center space-y-2">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-primary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+              </div>
+              <p className="text-foreground font-medium text-base">
+                Start a conversation
               </p>
-              <p className="text-muted-foreground text-xs mt-2">
-                Try asking about course policies, concepts, or schedules.
+              <p className="text-muted-foreground text-sm max-w-md">
+                Ask questions about course policies, concepts, or schedules. Your AI assistant is here to help.
               </p>
             </div>
           ) : (
             <>
-              {optimisticMessages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-              ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-muted rounded-lg px-4 py-2.5 flex items-center space-x-2">
-                <LoadingSpinner size="sm" />
-                <span className="text-sm text-muted-foreground">AI is thinking...</span>
-              </div>
-            </div>
-              )}
+              <AnimatePresence mode="popLayout">
+                {optimisticMessages.map((message, index) => {
+                  const isLastAssistant = !isLoading && 
+                    message.role === 'assistant' && 
+                    index === optimisticMessages.length - 1
+                  
+                  return (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ 
+                        duration: 0.3,
+                        ease: [0.4, 0, 0.2, 1] // Custom easing for smooth feel
+                      }}
+                      className="mb-4"
+                    >
+                      <MessageBubble message={message} />
+                      
+                      {/* Show suggested follow-ups after the last assistant message */}
+                      {isLastAssistant && suggestedFollowUps.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2, duration: 0.3 }}
+                          className="flex flex-wrap gap-2 ml-2 mt-3"
+                        >
+                          {suggestedFollowUps.map((suggestion, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.3 + idx * 0.1, duration: 0.2 }}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-auto py-2 px-3 shadow-sm hover:shadow-md transition-shadow"
+                                onClick={() => handleSuggestedFollowUp(suggestion)}
+                              >
+                                {suggestion}
+                              </Button>
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+              <AnimatePresence>
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-start mb-4"
+                  >
+                    <div className="bg-muted/80 rounded-xl border border-border px-4 py-3 flex items-center space-x-3 shadow-sm">
+                      <LoadingSpinner size="sm" />
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm text-muted-foreground font-medium">AI is thinking</span>
+                        <motion.div
+                          className="flex space-x-1"
+                          initial="hidden"
+                          animate="visible"
+                        >
+                          {[0, 1, 2].map((index) => (
+                            <motion.span
+                              key={index}
+                              className="w-1 h-1 bg-muted-foreground rounded-full"
+                              variants={{
+                                hidden: { opacity: 0 },
+                                visible: {
+                                  opacity: [0, 1, 0],
+                                  transition: {
+                                    duration: 1.4,
+                                    repeat: Infinity,
+                                    delay: index * 0.2,
+                                    ease: 'easeInOut',
+                                  },
+                                },
+                              }}
+                            />
+                          ))}
+                        </motion.div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </>
           )}
           <div ref={messagesEndRef} />
@@ -271,19 +420,19 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
       </ScrollArea>
 
       {error && (
-        <div className="mx-4 mb-2 flex items-start space-x-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="mx-6 mb-4 flex items-start space-x-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <p>{error}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="border-t p-4">
-        <div className="flex items-end space-x-2">
+      <form onSubmit={handleSubmit} className="border-t bg-card/50 p-4">
+        <div className="flex items-end space-x-3">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question about your course..."
-            className="min-h-[60px] max-h-[200px] resize-none"
+            className="min-h-[56px] max-h-[200px] resize-none text-base"
             disabled={isLoading}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -296,7 +445,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
             type="submit"
             size="icon"
             disabled={!input.trim() || isLoading}
-            className="h-[60px] w-[60px] flex-shrink-0"
+            className="h-[56px] w-[56px] flex-shrink-0 shadow-sm hover:shadow-md transition-shadow"
           >
             {isLoading ? (
               <LoadingSpinner size="sm" />

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   
   try {
     logger.apiRequest('GET', '/api/chat/history')
-    const supabase = createServiceClient()
+    const supabase = await createClient()
 
     // Authenticate user
     const {

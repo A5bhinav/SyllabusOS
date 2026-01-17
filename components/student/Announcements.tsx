@@ -44,7 +44,10 @@ export function Announcements({ courseId, showOnlyLatest = false, limit }: Annou
       
       const data = await response.json()
       // Students only see published announcements (API filters this, but double-check)
-      const published = data.filter((a: Announcement) => a.status === 'published')
+      // Filter to only show weeks 1-6
+      const published = data.filter((a: Announcement) => 
+        a.status === 'published' && a.weekNumber <= 6
+      )
       // Sort by week number (descending) and then by published date (descending)
       // Most recent weeks first
       published.sort((a: Announcement, b: Announcement) => {

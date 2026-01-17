@@ -33,10 +33,13 @@ export default function AnnouncementsPage() {
         
         const data = await response.json()
         // Students only see published announcements (API filters this, but double-check)
-        const published = data.filter((a: Announcement) => a.status === 'published')
+        // Filter to only show weeks 1-6
+        const published = data.filter((a: Announcement) => 
+          a.status === 'published' && a.weekNumber <= 6
+        )
         
         // Sort by week number (descending) and then by published date (descending)
-        // Most recent weeks at the TOP (Week 9 at top, Week 1 at bottom)
+        // Most recent weeks at the TOP (Week 6 at top, Week 1 at bottom)
         published.sort((a: Announcement, b: Announcement) => {
           // First sort by week number (descending - higher weeks first, so Week 9 comes before Week 1)
           if (b.weekNumber !== a.weekNumber) {

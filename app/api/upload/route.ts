@@ -192,19 +192,26 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
     
     // Provide more specific error messages
     let errorMessage = 'Failed to process upload'
+    let statusCode = 500
+    
     if (error instanceof Error) {
       errorMessage = error.message
-      // Check for common issues
-      if (error.message.includes('GOOGLE_GENAI_API_KEY')) {
-        errorMessage = 'Google Gemini API key is not configured. Please set GOOGLE_GENAI_API_KEY in your .env file, or enable MOCK_MODE=true for development.'
-      } else if (error.message.includes('embedding')) {
-        errorMessage = `Failed to generate embeddings: ${error.message}. Check your API key or enable MOCK_MODE=true for development.`
+      
+      // Check for common issues and provide helpful guidance
+      if (error.message.includes('GOOGLE_GENAI_API_KEY') || error.message.includes('MOCK_MODE')) {
+        // Embedding/API related errors - suggest using mock mode
+        errorMessage = error.message
+        // Don't change status code - let the error message guide the user
+      } else if (error.message.includes('embedding') || error.message.includes('Failed to generate embeddings')) {
+        errorMessage = `${error.message} Enable MOCK_MODE=true in your .env file to skip API calls during development.`
       } else if (error.message.includes('database') || error.message.includes('relation')) {
         errorMessage = `Database error: ${error.message}. Please ensure all migrations have been run.`
+        statusCode = 500
+      } else if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+        errorMessage = `${error.message} Please check your API keys or enable MOCK_MODE=true for development.`
       }
     }
     
@@ -213,7 +220,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: errorMessage,
       },
-      { status: 500 }
+      { status: statusCode }
     )
   }
 }

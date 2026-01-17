@@ -17,7 +17,7 @@ export default async function Home() {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (profile?.role === 'professor') {
       // Check if professor has courses - if not, go to onboarding

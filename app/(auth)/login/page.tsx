@@ -33,54 +33,50 @@ export default function LoginPage() {
         throw authError;
       }
 
-      // Get user profile to determine role
-      if (data.user) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
-
-        // If profile doesn't exist, create it (fallback)
-        if (profileError || !profile) {
-          console.warn('Profile not found, attempting to create...');
-          try {
-            const response = await fetch('/api/auth/create-profile', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userId: data.user.id,
-                email: data.user.email!,
-                name: data.user.user_metadata?.name || '',
-                role: data.user.user_metadata?.role || 'student',
-              }),
-            });
-
-            if (response.ok) {
-              // Profile created, redirect to home page which will handle routing
-              window.location.href = '/';
-              return;
-            }
-          } catch (err) {
-            console.error('Failed to create profile:', err);
-          }
-          
-          // Redirect to home page - it will handle routing based on profile
-          window.location.href = '/';
-          return;
-        }
-
-        // Redirect to home page - it will automatically redirect based on role
-        // This ensures consistent redirect logic and checks for courses
-        window.location.href = '/';
-        return;
-      } else {
-        // No user data - redirect to home page
-        window.location.href = '/';
-        return;
+      if (!data.user) {
+        throw new Error('Login failed - no user data returned');
       }
+
+      // Get user profile to determine role
+      let { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      // If profile doesn't exist, create it (fallback)
+      if (profileError || !profile) {
+        try {
+          const response = await fetch('/api/auth/create-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: data.user.id,
+              email: data.user.email!,
+              name: data.user.user_metadata?.name || '',
+              role: data.user.user_metadata?.role || 'student',
+            }),
+          });
+
+          if (response.ok) {
+            // Wait a moment for profile to be available
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Retry fetching profile
+            const retryResult = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            profile = retryResult.data;
+          }
+        } catch (err) {
+          console.error('Failed to create profile:', err);
+        }
+      }
+
+      // Redirect to home page - it will handle routing based on role
+      // This ensures consistent redirect logic and checks for courses
+      window.location.href = '/';
     } catch (err: any) {
       setError(err.message || 'Failed to log in. Please check your credentials.');
     } finally {

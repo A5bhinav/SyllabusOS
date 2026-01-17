@@ -63,6 +63,9 @@ export async function GET(request: NextRequest) {
         category,
         created_at,
         resolved_at,
+        response,
+        responded_at,
+        responded_by,
         profiles!escalations_student_id_fkey (
           name,
           email
@@ -136,6 +139,9 @@ export async function GET(request: NextRequest) {
       category: e.category,
       createdAt: e.created_at,
       resolvedAt: e.resolved_at || null,
+      response: e.response || null,
+      respondedAt: e.responded_at || null,
+      respondedBy: e.responded_by || null,
     }))
 
     const duration = Date.now() - startTime
@@ -150,12 +156,13 @@ export async function GET(request: NextRequest) {
 
 /**
  * PUT /api/escalations
- * Update escalation status (resolve)
+ * Update escalation status and/or response
  * 
  * Request body:
  * {
  *   escalationId: string,
- *   status: 'resolved' | 'pending'
+ *   status?: 'resolved' | 'pending',
+ *   response?: string
  * }
  */
 export async function PUT(request: NextRequest) {
@@ -191,7 +198,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Parse request body
-    let body: { escalationId?: string; status?: string }
+    let body: { escalationId?: string; status?: string; response?: string }
     try {
       body = await request.json()
     } catch (error) {
@@ -201,10 +208,10 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { escalationId, status } = body
+    const { escalationId, status, response } = body
 
     // Validate required fields
-    const requiredValidation = validateRequired(body, ['escalationId', 'status'])
+    const requiredValidation = validateRequired(body, ['escalationId'])
     if (!requiredValidation.isValid) {
       const errorMsg = requiredValidation.errors.map(e => e.message).join(', ')
       return createErrorResponse(
@@ -221,9 +228,18 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    if (!status || !['pending', 'resolved'].includes(status)) {
+    // Validate status if provided
+    if (status !== undefined && !['pending', 'resolved'].includes(status)) {
       return createErrorResponse(
         new Error('status must be "pending" or "resolved"'),
+        'Validation error'
+      )
+    }
+
+    // Validate response if provided
+    if (response !== undefined && typeof response !== 'string') {
+      return createErrorResponse(
+        new Error('response must be a string'),
         'Validation error'
       )
     }
@@ -259,11 +275,23 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update escalation
-    const updateData: any = { status }
-    if (status === 'resolved') {
-      updateData.resolved_at = new Date().toISOString()
-    } else {
-      updateData.resolved_at = null
+    const updateData: any = {}
+    
+    // Update status if provided
+    if (status !== undefined) {
+      updateData.status = status
+      if (status === 'resolved') {
+        updateData.resolved_at = new Date().toISOString()
+      } else {
+        updateData.resolved_at = null
+      }
+    }
+    
+    // Update response if provided
+    if (response !== undefined) {
+      updateData.response = response
+      updateData.responded_at = new Date().toISOString()
+      updateData.responded_by = user.id
     }
 
     const { data: updatedEscalation, error: updateError } = await supabase
@@ -277,15 +305,6 @@ export async function PUT(request: NextRequest) {
       throw updateError || new Error('Failed to update escalation')
     }
 
-    return NextResponse.json({
-      success: true,
-      escalation: {
-        id: updatedEscalation.id,
-        status: updatedEscalation.status,
-        resolvedAt: updatedEscalation.resolved_at,
-      },
-    })
-
     const duration = Date.now() - startTime
     logger.apiResponse('PUT', '/api/escalations', 200, duration)
     return NextResponse.json({
@@ -294,6 +313,9 @@ export async function PUT(request: NextRequest) {
         id: updatedEscalation.id,
         status: updatedEscalation.status,
         resolvedAt: updatedEscalation.resolved_at,
+        response: updatedEscalation.response,
+        respondedAt: updatedEscalation.responded_at,
+        respondedBy: updatedEscalation.responded_by,
       },
     })
   } catch (error) {

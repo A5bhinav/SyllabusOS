@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { getEscalations, resolveEscalation } from '@/lib/api/escalations'
+import { getEscalations, resolveEscalation, updateEscalationResponse } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { CheckCircle2, Clock, Mail, User } from 'lucide-react'
+import { CheckCircle2, Clock, Mail, User, MessageSquare, Send } from 'lucide-react'
 import { format } from 'date-fns'
 
 export function EscalationQueue() {
@@ -14,6 +15,8 @@ export function EscalationQueue() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [responseTexts, setResponseTexts] = useState<Record<string, string>>({})
+  const [submittingResponse, setSubmittingResponse] = useState<string | null>(null)
 
   useEffect(() => {
     loadEscalations()
@@ -45,6 +48,30 @@ export function EscalationQueue() {
       setError('Failed to resolve escalation')
     } finally {
       setResolvingId(null)
+    }
+  }
+
+  async function handleSubmitResponse(id: string) {
+    const response = responseTexts[id]?.trim()
+    if (!response) {
+      return
+    }
+
+    try {
+      setSubmittingResponse(id)
+      await updateEscalationResponse(id, response, 'resolved')
+      // Clear the response text
+      setResponseTexts(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      await loadEscalations()
+    } catch (err) {
+      console.error('Error submitting response:', err)
+      setError('Failed to submit response')
+    } finally {
+      setSubmittingResponse(null)
     }
   }
 
@@ -124,25 +151,86 @@ export function EscalationQueue() {
                         "{escalation.query}"
                       </p>
                     </div>
+
+                    {escalation.response && (
+                      <div className="pt-2 border-t">
+                        <p className="text-sm font-medium mb-1 text-green-700 dark:text-green-400">Your Response:</p>
+                        <p className="text-sm bg-green-50 dark:bg-green-950/20 p-2 rounded border border-green-200 dark:border-green-800">
+                          {escalation.response}
+                        </p>
+                        {escalation.respondedAt && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Responded {format(new Date(escalation.respondedAt), 'MMM d, yyyy h:mm a')}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleResolve(escalation.id)}
-                  disabled={resolvingId === escalation.id}
-                  className="w-full"
-                >
-                  {resolvingId === escalation.id ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Mark as Resolved
-                    </>
-                  )}
-                </Button>
+                {!escalation.response ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Type your response to the student..."
+                      value={responseTexts[escalation.id] || ''}
+                      onChange={(e) => setResponseTexts(prev => ({
+                        ...prev,
+                        [escalation.id]: e.target.value
+                      }))}
+                      className="min-h-[100px]"
+                      disabled={submittingResponse === escalation.id}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSubmitResponse(escalation.id)}
+                        disabled={submittingResponse === escalation.id || !responseTexts[escalation.id]?.trim()}
+                        className="flex-1"
+                      >
+                        {submittingResponse === escalation.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Send Response
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResolve(escalation.id)}
+                        disabled={resolvingId === escalation.id || submittingResponse === escalation.id}
+                      >
+                        {resolvingId === escalation.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Mark Resolved
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleResolve(escalation.id)}
+                    disabled={resolvingId === escalation.id}
+                    className="w-full"
+                  >
+                    {resolvingId === escalation.id ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Mark as Resolved
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             ))}
           </div>

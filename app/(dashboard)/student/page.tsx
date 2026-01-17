@@ -35,86 +35,48 @@ export default function StudentHomePage() {
           return
         }
 
-        // Check if user is a student
-        // Use maybeSingle() instead of single() to avoid throwing errors when no rows found
+        // Get user profile
         let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .maybeSingle()
 
-        // Handle profile query - log detailed info for debugging
-        if (profileError) {
-          console.error('Profile query error:', {
-            message: profileError.message,
-            code: profileError.code,
-            details: profileError.details,
-            hint: profileError.hint,
-            userId: user.id,
-            error: profileError
-          })
-        }
-
-        // If there was an error querying
-        if (profileError && !profile) {
-          // Check if it's a recursion error (policy issue)
-          if (profileError.message?.includes('infinite recursion') || profileError.message?.includes('recursion detected')) {
-            console.error('RLS Policy recursion error detected. This indicates a database policy issue.')
-            setError('Database configuration error. Please contact support.')
-            setLoading(false)
-            return
-          }
-          
-          // If profile not found, try to create it (might be a timing issue)
-          if (profileError.code === 'PGRST116' || !profileError.code) {
-            console.log('Profile not found, attempting to create via API...')
-            try {
-              const response = await fetch('/api/auth/create-profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId: user.id,
-                  email: user.email || '',
-                  name: user.user_metadata?.name || '',
-                  role: user.user_metadata?.role || 'student',
-                }),
-              })
+        // If profile doesn't exist, try to create it
+        if (!profile) {
+          try {
+            const response = await fetch('/api/auth/create-profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: user.id,
+                email: user.email || '',
+                name: user.user_metadata?.name || '',
+                role: user.user_metadata?.role || 'student',
+              }),
+            })
+            
+            if (response.ok) {
+              // Wait a moment for profile to be available
+              await new Promise(resolve => setTimeout(resolve, 500))
               
-              if (response.ok || response.status === 409) {
-                // Wait a moment for the profile to be available, then retry
-                await new Promise(resolve => setTimeout(resolve, 500))
-                
-                // Retry profile query after creation
-                const retryResult = await supabase
-                  .from('profiles')
-                  .select('role')
-                  .eq('id', user.id)
-                  .maybeSingle()
-                
-                if (retryResult.data) {
-                  profile = retryResult.data
-                  profileError = retryResult.error
-                } else if (retryResult.error) {
-                  profileError = retryResult.error
-                }
+              // Retry profile query
+              const retryResult = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle()
+              
+              if (retryResult.data) {
+                profile = retryResult.data
               }
-            } catch (err) {
-              console.error('Error creating profile:', err)
             }
-          }
-          
-          // If still have an error and no profile after retry
-          if (profileError && !profile) {
-            // Only show error if it's not "no rows found" (PGRST116)
-            if (profileError.code !== 'PGRST116') {
-              setError(`Failed to load profile: ${profileError.message || 'Unknown error'}. Please try again.`)
-              setLoading(false)
-              return
-            }
+          } catch (err) {
+            console.error('Error creating profile:', err)
           }
         }
 
-        // If still no profile after all attempts
+        // If still no profile, show error
         if (!profile) {
           setError('Profile not found. Please log out and sign up again, or contact support.')
           setLoading(false)
@@ -141,12 +103,10 @@ export default function StudentHomePage() {
           `)
           .eq('student_id', user.id)
 
-        // Handle enrollments query - don't throw if it's just empty or a minor error
+        // Handle enrollments query
         if (enrollmentsError) {
-          // If it's a policy error or table doesn't exist, that's okay - student has no enrollments
-          if (enrollmentsError.code === 'PGRST116' || enrollmentsError.message?.includes('permission denied')) {
-            // No rows found or permission issue - just set empty courses
-            console.log('No enrollments found or permission denied:', enrollmentsError.message)
+          // If it's "no rows found", that's fine - student has no enrollments
+          if (enrollmentsError.code === 'PGRST116') {
             setCourses([])
           } else {
             // Other errors - log but don't break the page
@@ -175,15 +135,8 @@ export default function StudentHomePage() {
           setCourses([])
         }
       } catch (err: any) {
-        // Log error for debugging but don't prevent page from rendering
         console.error('Error loading student courses:', err)
-        // Only set error if it's not a "no enrollments" case
-        if (err.code !== 'PGRST116' && !err.message?.includes('permission denied')) {
-          setError(err.message || 'Failed to load courses. Please try again.')
-        } else {
-          // No enrollments is fine - just show empty state
-          setCourses([])
-        }
+        setError(err.message || 'Failed to load courses. Please try again.')
       } finally {
         setLoading(false)
       }

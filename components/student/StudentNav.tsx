@@ -12,7 +12,8 @@ import {
   Search, 
   LogOut,
   Menu,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +61,12 @@ export function StudentNav() {
       href: '/student/announcements',
       icon: Megaphone,
       active: pathname === '/student/announcements',
+    },
+    {
+      label: 'My Escalations',
+      href: '/student/escalations',
+      icon: AlertCircle,
+      active: pathname === '/student/escalations',
     },
   ]
 

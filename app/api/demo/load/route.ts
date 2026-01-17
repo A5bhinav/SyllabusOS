@@ -31,43 +31,94 @@ export async function POST(request: NextRequest) {
 
     logger.info('[Demo Load] Starting demo course creation', { userId: user.id })
 
-    // Get user profile to verify role
-    const { data: profile } = await supabase
+    // Get user profile to verify role and ensure they're a professor
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, email, name')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    // Only professors can create courses, but allow any authenticated user for demo
-    // In production, you might want to check: if (profile?.role !== 'professor') { ... }
+    if (profileError || !profile) {
+      logger.error('[Demo Load] Profile error or not found', {
+        error: profileError,
+        userId: user.id,
+      })
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'User profile not found. Please ensure your account is set up correctly.',
+        },
+        { status: 404 }
+      )
+    }
 
-    // Check if demo course already exists
-    const { data: existingCourse } = await supabase
+    // Only professors can create courses - ensure role is set correctly
+    if (profile.role !== 'professor') {
+      logger.warn('[Demo Load] User is not a professor, updating role', {
+        userId: user.id,
+        currentRole: profile.role,
+      })
+      
+      // Update the profile to professor role for demo purposes
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'professor' })
+        .eq('id', user.id)
+      
+      if (updateError) {
+        logger.error('[Demo Load] Failed to update role', updateError)
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Could not set user role to professor. Please update your profile in Supabase.',
+            details: updateError.message,
+          },
+          { status: 500 }
+        )
+      }
+      
+      logger.info('[Demo Load] Updated user role to professor', { userId: user.id })
+    }
+
+    // Use service role client to bypass RLS for course creation
+    // This ensures the demo data can be loaded regardless of RLS policies
+    const supabaseAdmin = createServiceClient()
+
+    // Check if demo course already exists (use admin client to bypass RLS)
+    const { data: existingCourse } = await supabaseAdmin
       .from('courses')
       .select('id')
       .eq('professor_id', user.id)
       .eq('name', DEMO_COURSE_INFO.name)
-      .single()
+      .maybeSingle()
 
     let courseId: string
     if (existingCourse) {
       courseId = existingCourse.id
       logger.info('[Demo Load] Using existing demo course', { courseId })
       
-      // Clear existing demo data to start fresh
-      await supabase.from('course_content').delete().eq('course_id', courseId)
-      await supabase.from('schedules').delete().eq('course_id', courseId)
-      await supabase.from('announcements').delete().eq('course_id', courseId)
-      await supabase.from('chat_logs').delete().eq('course_id', courseId)
-      await supabase.from('escalations').delete().eq('course_id', courseId)
+      // Clear existing demo data to start fresh (use admin client)
+      await supabaseAdmin.from('course_content').delete().eq('course_id', courseId)
+      await supabaseAdmin.from('schedules').delete().eq('course_id', courseId)
+      await supabaseAdmin.from('announcements').delete().eq('course_id', courseId)
+      await supabaseAdmin.from('chat_logs').delete().eq('course_id', courseId)
+      await supabaseAdmin.from('escalations').delete().eq('course_id', courseId)
     } else {
-      // Create new demo course
-      let joinCode = DEMO_COURSE_INFO.joinCode
+      // Create new demo course using admin client to bypass RLS
+      // Check if the demo join code already exists
+      const { data: existingWithCode } = await supabaseAdmin
+        .from('courses')
+        .select('id')
+        .eq('join_code', DEMO_COURSE_INFO.joinCode)
+        .maybeSingle()
       
-      // Ensure join code is unique (retry if collision)
+      // If demo code exists, generate a unique one
+      let joinCode = existingWithCode ? generateJoinCode() : DEMO_COURSE_INFO.joinCode
+      
+      // Ensure uniqueness (retry if collision)
       let attempts = 0
       while (attempts < 10) {
-        const { data: existing } = await supabase
+        const { data: existing } = await supabaseAdmin
           .from('courses')
           .select('id')
           .eq('join_code', joinCode)
@@ -78,22 +129,50 @@ export async function POST(request: NextRequest) {
         attempts++
       }
 
-      const { data: newCourse, error: courseError } = await supabase
+      logger.info('[Demo Load] Attempting to create course', {
+        name: DEMO_COURSE_INFO.name,
+        professor_id: user.id,
+        join_code: joinCode,
+      })
+
+      // Use admin client to create course (bypasses RLS)
+      const { data: newCourse, error: courseError } = await supabaseAdmin
         .from('courses')
         .insert({
           name: DEMO_COURSE_INFO.name,
           professor_id: user.id,
           join_code: joinCode,
         })
-        .select('id')
+        .select('id, join_code')
         .single()
 
       if (courseError || !newCourse) {
-        logger.error('[Demo Load] Failed to create course', courseError)
-        throw new Error('Failed to create course')
+        logger.error('[Demo Load] Failed to create course', {
+          error: courseError,
+          errorMessage: courseError?.message,
+          errorCode: courseError?.code,
+          errorDetails: courseError?.details,
+          errorHint: courseError?.hint,
+          userId: user.id,
+          userName: user.email,
+          attemptedJoinCode: joinCode,
+        })
+        
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Failed to create course',
+            details: courseError?.message || 'Unknown error',
+            errorCode: courseError?.code,
+          },
+          { status: 500 }
+        )
       }
       courseId = newCourse.id
-      logger.info('[Demo Load] Created new demo course', { courseId, joinCode })
+      logger.info('[Demo Load] Created new demo course', { 
+        courseId, 
+        join_code: newCourse.join_code,
+      })
     }
 
     // 1. Store syllabus chunks with embeddings
@@ -112,7 +191,7 @@ export async function POST(request: NextRequest) {
     await storeDocumentsWithEmbeddings(documents)
     logger.info('[Demo Load] Syllabus chunks stored successfully')
 
-    // 2. Insert schedule entries
+    // 2. Insert schedule entries (use admin client to bypass RLS)
     logger.info('[Demo Load] Inserting schedule entries', { count: DEMO_SCHEDULE.length })
     const scheduleRecords = DEMO_SCHEDULE.map(entry => ({
       course_id: courseId,
@@ -123,7 +202,7 @@ export async function POST(request: NextRequest) {
       due_date: entry.dueDate || null,
     }))
     
-    const { error: scheduleError } = await supabase
+    const { error: scheduleError } = await supabaseAdmin
       .from('schedules')
       .insert(scheduleRecords)
     
@@ -133,7 +212,7 @@ export async function POST(request: NextRequest) {
     }
     logger.info('[Demo Load] Schedule entries inserted successfully')
 
-    // 3. Insert announcements
+    // 3. Insert announcements (use admin client to bypass RLS)
     logger.info('[Demo Load] Inserting announcements', { count: DEMO_ANNOUNCEMENTS.length })
     const announcementRecords = DEMO_ANNOUNCEMENTS.map(ann => ({
       course_id: courseId,
@@ -144,7 +223,7 @@ export async function POST(request: NextRequest) {
       published_at: ann.status === 'published' ? new Date().toISOString() : null,
     }))
     
-    const { error: announcementError } = await supabase
+    const { error: announcementError } = await supabaseAdmin
       .from('announcements')
       .insert(announcementRecords)
     

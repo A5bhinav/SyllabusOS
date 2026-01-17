@@ -15,9 +15,10 @@ export default async function DashboardPage() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile) {
+    // Profile doesn't exist - redirect to login to trigger profile creation
     redirect('/login')
   }
 

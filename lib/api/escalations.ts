@@ -18,3 +18,18 @@ export async function resolveEscalation(id: string): Promise<void> {
     status: 'resolved' 
   });
 }
+
+/**
+ * Update escalation response
+ */
+export async function updateEscalationResponse(
+  id: string, 
+  response: string, 
+  status?: 'pending' | 'resolved'
+): Promise<void> {
+  await apiClient.put('/escalations', {
+    escalationId: id,
+    response,
+    ...(status && { status })
+  });
+}

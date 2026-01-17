@@ -69,7 +69,7 @@ export default function LoginPage() {
               if (newProfile?.role === 'professor') {
                 router.push('/dashboard');
               } else {
-                router.push('/student/chat');
+                router.push('/student');
               }
               return;
             }
@@ -77,8 +77,8 @@ export default function LoginPage() {
             console.error('Failed to create profile:', err);
           }
           
-          // Default to student chat if profile creation fails
-          router.push('/student/chat');
+          // Default to student dashboard if profile creation fails
+          router.push('/student');
           return;
         }
 

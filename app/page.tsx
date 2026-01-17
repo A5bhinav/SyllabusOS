@@ -32,7 +32,7 @@ export default async function Home() {
         redirect('/dashboard')
       }
     } else if (profile?.role === 'student') {
-      redirect('/student/chat')
+      redirect('/student')
     } else {
       // Profile doesn't exist or role is invalid, stay on home page
       // User can sign up or log in

@@ -13,25 +13,40 @@ export default function DashboardPage() {
   const [signingOut, setSigningOut] = useState(false)
 
   useEffect(() => {
-    // Check if professor has courses - redirect to onboarding if not
-    const checkCourses = async () => {
+    // Check user role and redirect if needed
+    const checkRoleAndCourses = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       if (user) {
-        const { data: courses } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('professor_id', user.id)
-          .limit(1)
+        // First check role - if student, redirect to student dashboard
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
 
-        if (!courses || courses.length === 0) {
-          router.push('/onboarding')
+        if (profile?.role === 'student') {
+          router.push('/student')
+          return
+        }
+
+        // If professor, check if they have courses - redirect to onboarding if not
+        if (profile?.role === 'professor') {
+          const { data: courses } = await supabase
+            .from('courses')
+            .select('id')
+            .eq('professor_id', user.id)
+            .limit(1)
+
+          if (!courses || courses.length === 0) {
+            router.push('/onboarding')
+          }
         }
       }
     }
 
-    checkCourses()
+    checkRoleAndCourses()
   }, [router])
 
   const handleSignOut = async () => {

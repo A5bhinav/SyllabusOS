@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
       }
     } else {
-      // Student - redirect to chat
-      return NextResponse.redirect(new URL('/student/chat', requestUrl.origin))
+      // Student - redirect to student dashboard
+      return NextResponse.redirect(new URL('/student', requestUrl.origin))
     }
   }
 

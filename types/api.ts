@@ -133,6 +133,7 @@ export interface PulseResponse {
     totalQueriesToday: number
     escalationsPending: number
     avgResponseTime: number
+    mostConfusedTopic?: string
   }
 }
 

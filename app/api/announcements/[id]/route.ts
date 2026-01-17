@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError, validateType } from '@/lib/utils/api-errors'
+import { logger } from '@/lib/utils/logger'
 import type { Announcement, UpdateAnnouncementRequest } from '@/types/api'
 
 /**
@@ -10,8 +12,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = Date.now()
+  
   try {
     const { id: announcementId } = await params
+    logger.apiRequest('PUT', `/api/announcements/${announcementId}`)
     const supabase = await createClient()
 
     // Authenticate user
@@ -21,10 +26,9 @@ export async function PUT(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', `/api/announcements/${announcementId}`, 401, duration)
+      return createUnauthorizedError()
     }
 
     // Verify user is a professor
@@ -35,16 +39,15 @@ export async function PUT(
       .single()
 
     if (profileError || !profile || profile.role !== 'professor') {
-      return NextResponse.json(
-        { error: 'Forbidden - only professors can update announcements' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', `/api/announcements/${announcementId}`, 403, duration)
+      return createForbiddenError('Only professors can update announcements')
     }
 
     if (!announcementId) {
-      return NextResponse.json(
-        { error: 'Announcement ID is required' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('Announcement ID is required'),
+        'Validation error'
       )
     }
 
@@ -74,34 +77,44 @@ export async function PUT(
       : existingAnnouncement.courses
     
     if (!course || course.professor_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden - cannot update announcement for this course' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', `/api/announcements/${announcementId}`, 403, duration)
+      return createForbiddenError('Cannot update announcement for this course')
     }
 
     // Parse request body
-    const body: UpdateAnnouncementRequest = await request.json()
+    let body: UpdateAnnouncementRequest
+    try {
+      body = await request.json()
+    } catch (error) {
+      return createErrorResponse(
+        new Error('Invalid JSON in request body'),
+        'Invalid request body'
+      )
+    }
+
     const { title, content, status } = body
 
     // Build update object
     const updateData: any = {}
 
     if (title !== undefined) {
-      if (typeof title !== 'string' || title.trim().length === 0) {
-        return NextResponse.json(
-          { error: 'title must be a non-empty string' },
-          { status: 400 }
+      const titleTypeCheck = validateType({ title }, 'title', 'string')
+      if (!titleTypeCheck.isValid || title.trim().length === 0) {
+        return createErrorResponse(
+          new Error('title must be a non-empty string'),
+          'Validation error'
         )
       }
       updateData.title = title.trim()
     }
 
     if (content !== undefined) {
-      if (typeof content !== 'string' || content.trim().length === 0) {
-        return NextResponse.json(
-          { error: 'content must be a non-empty string' },
-          { status: 400 }
+      const contentTypeCheck = validateType({ content }, 'content', 'string')
+      if (!contentTypeCheck.isValid || content.trim().length === 0) {
+        return createErrorResponse(
+          new Error('content must be a non-empty string'),
+          'Validation error'
         )
       }
       updateData.content = content.trim()
@@ -109,9 +122,9 @@ export async function PUT(
 
     if (status !== undefined) {
       if (!['draft', 'published'].includes(status)) {
-        return NextResponse.json(
-          { error: 'status must be "draft" or "published"' },
-          { status: 400 }
+        return createErrorResponse(
+          new Error('status must be "draft" or "published"'),
+          'Validation error'
         )
       }
       updateData.status = status
@@ -124,9 +137,9 @@ export async function PUT(
 
     // If no updates provided, return error
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        { error: 'No update fields provided' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('No update fields provided'),
+        'Validation error'
       )
     }
 
@@ -154,17 +167,13 @@ export async function PUT(
       publishedAt: updatedAnnouncement.published_at || null,
     }
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('PUT', `/api/announcements/${announcementId}`, 200, duration)
     return NextResponse.json(response)
   } catch (error) {
-    console.error('[Announcements API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to update announcement',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('PUT', '/api/announcements/[id]', error, 500)
+    return createErrorResponse(error, 'Failed to update announcement')
   }
 }
 
@@ -176,8 +185,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = Date.now()
+  
   try {
     const { id: announcementId } = await params
+    logger.apiRequest('DELETE', `/api/announcements/${announcementId}`)
     const supabase = await createClient()
 
     // Authenticate user
@@ -187,10 +199,9 @@ export async function DELETE(
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('DELETE', `/api/announcements/${announcementId}`, 401, duration)
+      return createUnauthorizedError()
     }
 
     // Verify user is a professor
@@ -201,16 +212,15 @@ export async function DELETE(
       .single()
 
     if (profileError || !profile || profile.role !== 'professor') {
-      return NextResponse.json(
-        { error: 'Forbidden - only professors can delete announcements' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('DELETE', `/api/announcements/${announcementId}`, 403, duration)
+      return createForbiddenError('Only professors can delete announcements')
     }
 
     if (!announcementId) {
-      return NextResponse.json(
-        { error: 'Announcement ID is required' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('Announcement ID is required'),
+        'Validation error'
       )
     }
 
@@ -228,10 +238,9 @@ export async function DELETE(
       .single()
 
     if (fetchError || !existingAnnouncement) {
-      return NextResponse.json(
-        { error: 'Announcement not found' },
-        { status: 404 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('DELETE', `/api/announcements/${announcementId}`, 404, duration)
+      return createNotFoundError('Announcement')
     }
 
     // Verify course belongs to this professor
@@ -240,10 +249,9 @@ export async function DELETE(
       : existingAnnouncement.courses
     
     if (!courseForDelete || courseForDelete.professor_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden - cannot delete announcement for this course' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('DELETE', `/api/announcements/${announcementId}`, 403, duration)
+      return createForbiddenError('Cannot delete announcement for this course')
     }
 
     // Delete announcement
@@ -256,17 +264,13 @@ export async function DELETE(
       throw deleteError
     }
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('DELETE', `/api/announcements/${announcementId}`, 200, duration)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[Announcements API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to delete announcement',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('DELETE', '/api/announcements/[id]', error, 500)
+    return createErrorResponse(error, 'Failed to delete announcement')
   }
 }
 

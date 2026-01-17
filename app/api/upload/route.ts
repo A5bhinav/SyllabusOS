@@ -3,13 +3,20 @@ import { createClient } from '@/lib/supabase/server'
 import { processPDF } from '@/lib/rag/chunking'
 import { storeDocumentsWithEmbeddings } from '@/lib/rag/vector-store'
 import { parseScheduleFile } from '@/lib/utils/schedule-parser'
+import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError } from '@/lib/utils/api-errors'
+import { getDemoModeInfo } from '@/lib/utils/demo-mode'
+import { logger } from '@/lib/utils/logger'
 import type { UploadResponse } from '@/types/api'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60 // 60 seconds for file processing
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('POST', '/api/upload')
+
     // Get authenticated user
     const supabase = await createClient()
     const {
@@ -18,10 +25,9 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/upload', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Get user profile to check role
@@ -32,18 +38,16 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { success: false, error: 'User profile not found' },
-        { status: 404 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/upload', 404, duration)
+      return createNotFoundError('User profile')
     }
 
     // Only professors can upload
     if (profile.role !== 'professor') {
-      return NextResponse.json(
-        { success: false, error: 'Only professors can upload course materials' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/upload', 403, duration)
+      return createForbiddenError('Only professors can upload course materials')
     }
 
     // Parse form data
@@ -53,24 +57,42 @@ export async function POST(request: NextRequest) {
     const courseIdParam = formData.get('courseId') as string | null
 
     if (!syllabusFile) {
-      return NextResponse.json(
-        { success: false, error: 'Syllabus file is required' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('Syllabus file is required'),
+        'Validation error'
       )
     }
 
     if (!scheduleFile) {
-      return NextResponse.json(
-        { success: false, error: 'Schedule file is required' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('Schedule file is required'),
+        'Validation error'
       )
     }
 
     // Validate file types
     if (syllabusFile.type !== 'application/pdf') {
-      return NextResponse.json(
-        { success: false, error: 'Syllabus must be a PDF file' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('Syllabus must be a PDF file'),
+        'Validation error'
+      )
+    }
+
+    // Validate file sizes (e.g., max 10MB for syllabus, 5MB for schedule)
+    const maxSyllabusSize = 10 * 1024 * 1024 // 10MB
+    const maxScheduleSize = 5 * 1024 * 1024 // 5MB
+
+    if (syllabusFile.size > maxSyllabusSize) {
+      return createErrorResponse(
+        new Error(`Syllabus file size exceeds maximum allowed size of ${maxSyllabusSize / (1024 * 1024)}MB`),
+        'Validation error'
+      )
+    }
+
+    if (scheduleFile.size > maxScheduleSize) {
+      return createErrorResponse(
+        new Error(`Schedule file size exceeds maximum allowed size of ${maxScheduleSize / (1024 * 1024)}MB`),
+        'Validation error'
       )
     }
 
@@ -91,9 +113,10 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (courseError || !newCourse) {
-        return NextResponse.json(
-          { success: false, error: `Failed to create course: ${courseError?.message}` },
-          { status: 500 }
+        logger.error('[Upload API] Failed to create course', courseError)
+        return createErrorResponse(
+          courseError || new Error('Failed to create course'),
+          'Failed to create course'
         )
       }
 
@@ -107,17 +130,15 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (courseError || !course) {
-        return NextResponse.json(
-          { success: false, error: 'Course not found' },
-          { status: 404 }
-        )
+        const duration = Date.now() - startTime
+        logger.apiResponse('POST', '/api/upload', 404, duration)
+        return createNotFoundError('Course')
       }
 
       if (course.professor_id !== user.id) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized to modify this course' },
-          { status: 403 }
-        )
+        const duration = Date.now() - startTime
+        logger.apiResponse('POST', '/api/upload', 403, duration)
+        return createForbiddenError('Unauthorized to modify this course')
       }
     }
 
@@ -143,7 +164,7 @@ export async function POST(request: NextRequest) {
     const scheduleResult = await parseScheduleFile(scheduleFile)
 
     if (scheduleResult.errors.length > 0) {
-      console.warn('Schedule parsing errors:', scheduleResult.errors)
+      logger.warn('[Upload API] Schedule parsing errors', { errors: scheduleResult.errors })
     }
 
     // Store schedule entries
@@ -166,62 +187,63 @@ export async function POST(request: NextRequest) {
         })
 
       if (scheduleError) {
-        console.error('Failed to store schedule:', scheduleError)
+        logger.error('[Upload API] Failed to store schedule', scheduleError)
         // Continue even if schedule storage fails
       } else {
         scheduleEntriesCount = scheduleResult.entries.length
       }
     }
 
-    const response: UploadResponse = {
+    const duration = Date.now() - startTime
+    logger.apiResponse('POST', '/api/upload', 200, duration, {
+      courseId,
+      chunksCreated: chunks.length,
+      scheduleEntries: scheduleEntriesCount,
+    })
+
+    const demoInfo = getDemoModeInfo()
+    const response: UploadResponse & { demoMode?: { enabled: boolean; currentWeek?: number } } = {
       success: true,
       courseId,
       chunksCreated: chunks.length,
       scheduleEntries: scheduleEntriesCount,
-    }
-
-    if (scheduleResult.errors.length > 0) {
-      // Include warnings in response
-      return NextResponse.json({
-        ...response,
-        warnings: scheduleResult.errors,
-      })
+      ...(scheduleResult.errors.length > 0 && { warnings: scheduleResult.errors }),
+      ...(demoInfo.enabled && {
+        demoMode: {
+          enabled: demoInfo.enabled,
+          currentWeek: demoInfo.currentWeek,
+        },
+      }),
     }
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Upload error:', error)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    const duration = Date.now() - startTime
+    logger.apiError('POST', '/api/upload', error, 500)
     
-    // Provide more specific error messages
-    let errorMessage = 'Failed to process upload'
-    let statusCode = 500
-    
+    // Provide more specific error messages for common issues
     if (error instanceof Error) {
-      errorMessage = error.message
-      
-      // Check for common issues and provide helpful guidance
       if (error.message.includes('GOOGLE_GENAI_API_KEY') || error.message.includes('MOCK_MODE')) {
-        // Embedding/API related errors - suggest using mock mode
-        errorMessage = error.message
-        // Don't change status code - let the error message guide the user
+        // Embedding/API related errors
+        return createErrorResponse(
+          error,
+          'Failed to process upload',
+          true
+        )
       } else if (error.message.includes('embedding') || error.message.includes('Failed to generate embeddings')) {
-        errorMessage = `${error.message} Enable MOCK_MODE=true in your .env file to skip API calls during development.`
+        const enhancedError = new Error(
+          `${error.message} Enable MOCK_MODE=true in your .env file to skip API calls during development.`
+        )
+        return createErrorResponse(enhancedError, 'Failed to process upload', true)
       } else if (error.message.includes('database') || error.message.includes('relation')) {
-        errorMessage = `Database error: ${error.message}. Please ensure all migrations have been run.`
-        statusCode = 500
-      } else if (error.message.includes('Unauthorized') || error.message.includes('401')) {
-        errorMessage = `${error.message} Please check your API keys or enable MOCK_MODE=true for development.`
+        const enhancedError = new Error(
+          `Database error: ${error.message}. Please ensure all migrations have been run.`
+        )
+        return createErrorResponse(enhancedError, 'Failed to process upload', true)
       }
     }
     
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
-      { status: statusCode }
-    )
+    return createErrorResponse(error, 'Failed to process upload', true)
   }
 }
 

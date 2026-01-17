@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
+import { logger } from '@/lib/utils/logger'
 import type { Escalation } from '@/types/api'
 
 /**
@@ -13,7 +15,10 @@ import type { Escalation } from '@/types/api'
  * - status: Filter by status ('pending' | 'resolved')
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('GET', '/api/escalations')
     const supabase = await createClient()
 
     // Authenticate user
@@ -23,10 +28,9 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/escalations', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Get user profile to determine role
@@ -37,10 +41,9 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/escalations', 404, duration)
+      return createNotFoundError('User profile')
     }
 
     // Get query parameters
@@ -135,17 +138,13 @@ export async function GET(request: NextRequest) {
       resolvedAt: e.resolved_at || null,
     }))
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('GET', '/api/escalations', 200, duration, { count: response.length })
     return NextResponse.json(response)
   } catch (error) {
-    console.error('[Escalations API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch escalations',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('GET', '/api/escalations', error, 500)
+    return createErrorResponse(error, 'Failed to fetch escalations')
   }
 }
 
@@ -160,7 +159,10 @@ export async function GET(request: NextRequest) {
  * }
  */
 export async function PUT(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('PUT', '/api/escalations')
     const supabase = await createClient()
 
     // Authenticate user
@@ -170,10 +172,9 @@ export async function PUT(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', '/api/escalations', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Verify user is a professor
@@ -184,27 +185,46 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (profileError || !profile || profile.role !== 'professor') {
-      return NextResponse.json(
-        { error: 'Forbidden - only professors can update escalations' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', '/api/escalations', 403, duration)
+      return createForbiddenError('Only professors can update escalations')
     }
 
     // Parse request body
-    const body = await request.json()
+    let body: { escalationId?: string; status?: string }
+    try {
+      body = await request.json()
+    } catch (error) {
+      return createErrorResponse(
+        new Error('Invalid JSON in request body'),
+        'Invalid request body'
+      )
+    }
+
     const { escalationId, status } = body
 
-    if (!escalationId || typeof escalationId !== 'string') {
-      return NextResponse.json(
-        { error: 'escalationId is required' },
-        { status: 400 }
+    // Validate required fields
+    const requiredValidation = validateRequired(body, ['escalationId', 'status'])
+    if (!requiredValidation.isValid) {
+      const errorMsg = requiredValidation.errors.map(e => e.message).join(', ')
+      return createErrorResponse(
+        new Error(errorMsg),
+        'Validation error'
+      )
+    }
+
+    const escalationIdTypeCheck = validateType({ escalationId }, 'escalationId', 'string')
+    if (!escalationIdTypeCheck.isValid) {
+      return createErrorResponse(
+        new Error(escalationIdTypeCheck.error || 'Invalid escalationId type'),
+        'Validation error'
       )
     }
 
     if (!status || !['pending', 'resolved'].includes(status)) {
-      return NextResponse.json(
-        { error: 'status must be "pending" or "resolved"' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('status must be "pending" or "resolved"'),
+        'Validation error'
       )
     }
 
@@ -222,10 +242,9 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (escalationError || !escalation) {
-      return NextResponse.json(
-        { error: 'Escalation not found' },
-        { status: 404 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', '/api/escalations', 404, duration)
+      return createNotFoundError('Escalation')
     }
 
     // Verify course belongs to this professor
@@ -234,10 +253,9 @@ export async function PUT(request: NextRequest) {
       : escalation.courses
     
     if (!course || course.professor_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden - cannot update escalation for this course' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('PUT', '/api/escalations', 403, duration)
+      return createForbiddenError('Cannot update escalation for this course')
     }
 
     // Update escalation
@@ -267,16 +285,21 @@ export async function PUT(request: NextRequest) {
         resolvedAt: updatedEscalation.resolved_at,
       },
     })
-  } catch (error) {
-    console.error('[Escalations API] Error:', error)
 
-    return NextResponse.json(
-      {
-        error: 'Failed to update escalation',
-        message: error instanceof Error ? error.message : 'Unknown error',
+    const duration = Date.now() - startTime
+    logger.apiResponse('PUT', '/api/escalations', 200, duration)
+    return NextResponse.json({
+      success: true,
+      escalation: {
+        id: updatedEscalation.id,
+        status: updatedEscalation.status,
+        resolvedAt: updatedEscalation.resolved_at,
       },
-      { status: 500 }
-    )
+    })
+  } catch (error) {
+    const duration = Date.now() - startTime
+    logger.apiError('PUT', '/api/escalations', error, 500)
+    return createErrorResponse(error, 'Failed to update escalation')
   }
 }
 

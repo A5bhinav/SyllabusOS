@@ -4,6 +4,9 @@ import { getSyllabusAgent } from '@/lib/agents/syllabus-agent'
 import { getConceptAgent } from '@/lib/agents/concept-agent'
 import { getEscalationHandler } from '@/lib/agents/escalation-handler'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createErrorResponse, createUnauthorizedError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
+import { getDemoModeInfo } from '@/lib/utils/demo-mode'
+import { logger } from '@/lib/utils/logger'
 import type { ChatRequest, ChatResponse } from '@/types/api'
 
 /**
@@ -11,30 +14,63 @@ import type { ChatRequest, ChatResponse } from '@/types/api'
  * Handles chat messages and routes to appropriate agents
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('POST', '/api/chat')
+
     // Parse request body
-    const body: ChatRequest = await request.json()
+    let body: ChatRequest
+    try {
+      body = await request.json()
+    } catch (error) {
+      return createErrorResponse(
+        new Error('Invalid JSON in request body'),
+        'Invalid request body'
+      )
+    }
+
     const { message, courseId, userId } = body
 
-    // Validate input
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Message is required and must be a non-empty string' },
-        { status: 400 }
+    // Validate required fields
+    const requiredValidation = validateRequired(body, ['message', 'courseId', 'userId'])
+    if (!requiredValidation.isValid) {
+      const errorMsg = requiredValidation.errors.map(e => e.message).join(', ')
+      return createErrorResponse(
+        new Error(errorMsg),
+        'Validation error'
       )
     }
 
-    if (!courseId || typeof courseId !== 'string') {
-      return NextResponse.json(
-        { error: 'courseId is required and must be a string' },
-        { status: 400 }
+    // Validate field types
+    const messageTypeCheck = validateType({ message }, 'message', 'string')
+    if (!messageTypeCheck.isValid) {
+      return createErrorResponse(
+        new Error(messageTypeCheck.error || 'Invalid message type'),
+        'Validation error'
       )
     }
 
-    if (!userId || typeof userId !== 'string') {
-      return NextResponse.json(
-        { error: 'userId is required and must be a string' },
-        { status: 400 }
+    if (message.trim().length === 0) {
+      return createErrorResponse(
+        new Error('message must be a non-empty string'),
+        'Validation error'
+      )
+    }
+
+    const courseIdTypeCheck = validateType({ courseId }, 'courseId', 'string')
+    if (!courseIdTypeCheck.isValid) {
+      return createErrorResponse(
+        new Error(courseIdTypeCheck.error || 'Invalid courseId type'),
+        'Validation error'
+      )
+    }
+
+    const userIdTypeCheck = validateType({ userId }, 'userId', 'string')
+    if (!userIdTypeCheck.isValid) {
+      return createErrorResponse(
+        new Error(userIdTypeCheck.error || 'Invalid userId type'),
+        'Validation error'
       )
     }
 
@@ -47,10 +83,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'Invalid user' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/chat', 401, duration)
+      return createUnauthorizedError('Invalid user')
     }
 
     // Verify course exists
@@ -61,10 +96,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (courseError || !course) {
-      return NextResponse.json(
-        { error: 'Course not found' },
-        { status: 404 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('POST', '/api/chat', 404, duration)
+      return createNotFoundError('Course')
     }
 
     // Route query using AgentRouter
@@ -149,9 +183,11 @@ export async function POST(request: NextRequest) {
 
       default:
         // Should not reach here, but handle gracefully
-        return NextResponse.json(
-          { error: 'Invalid routing decision' },
-          { status: 500 }
+        const duration = Date.now() - startTime
+        logger.apiError('POST', '/api/chat', new Error('Invalid routing decision'), 500)
+        return createErrorResponse(
+          new Error('Invalid routing decision'),
+          'Internal server error'
         )
     }
 
@@ -170,34 +206,41 @@ export async function POST(request: NextRequest) {
         })
 
       if (logError) {
-        console.error('[Chat API] Error logging conversation:', logError)
+        logger.error('[Chat API] Error logging conversation', logError)
         // Don't fail the request if logging fails, just log the error
       }
     } catch (logError) {
-      console.error('[Chat API] Error logging conversation:', logError)
+      logger.error('[Chat API] Error logging conversation', logError)
       // Don't fail the request if logging fails
     }
 
     // Build response
-    const response: ChatResponse = {
+    const duration = Date.now() - startTime
+    logger.apiResponse('POST', '/api/chat', 200, duration, {
+      agent: routingDecision.route,
+      escalated: agentResponse.shouldEscalate || !!escalationId,
+    })
+
+    const demoInfo = getDemoModeInfo()
+    const response: ChatResponse & { demoMode?: { enabled: boolean; currentWeek?: number } } = {
       response: agentResponse.response,
       agent: routingDecision.route,
       citations: agentResponse.citations,
       escalated: agentResponse.shouldEscalate || !!escalationId,
       escalationId: escalationId,
+      ...(demoInfo.enabled && {
+        demoMode: {
+          enabled: demoInfo.enabled,
+          currentWeek: demoInfo.currentWeek,
+        },
+      }),
     }
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('[Chat API] Error:', error)
-    
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('POST', '/api/chat', error, 500)
+    return createErrorResponse(error, 'Internal server error', true)
   }
 }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError } from '@/lib/utils/api-errors'
+import { logger } from '@/lib/utils/logger'
 import type { PulseResponse } from '@/types/api'
 
 /**
@@ -12,7 +14,10 @@ import type { PulseResponse } from '@/types/api'
  * - Query distribution by agent type
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
+    logger.apiRequest('GET', '/api/pulse')
     const supabase = await createClient()
 
     // Authenticate user
@@ -22,10 +27,9 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - please log in' },
-        { status: 401 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/pulse', 401, duration)
+      return createUnauthorizedError()
     }
 
     // Verify user is a professor
@@ -36,10 +40,9 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (profileError || !profile || profile.role !== 'professor') {
-      return NextResponse.json(
-        { error: 'Forbidden - only professors can view pulse reports' },
-        { status: 403 }
-      )
+      const duration = Date.now() - startTime
+      logger.apiResponse('GET', '/api/pulse', 403, duration)
+      return createForbiddenError('Only professors can view pulse reports')
     }
 
     // Get query parameters
@@ -221,17 +224,16 @@ export async function GET(request: NextRequest) {
       },
     }
 
+    const duration = Date.now() - startTime
+    logger.apiResponse('GET', '/api/pulse', 200, duration, {
+      totalQueries: response.totalQueries,
+      escalationCount: response.escalationCount,
+    })
     return NextResponse.json(response)
   } catch (error) {
-    console.error('[Pulse API] Error:', error)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to generate pulse report',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    const duration = Date.now() - startTime
+    logger.apiError('GET', '/api/pulse', error, 500)
+    return createErrorResponse(error, 'Failed to generate pulse report')
   }
 }
 

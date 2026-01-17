@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { FileUpload } from '@/components/shared/FileUpload'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { uploadFiles } from '@/lib/api/upload'
+import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 
 export default function OnboardingPage() {
@@ -14,6 +15,7 @@ export default function OnboardingPage() {
   const [syllabusFile, setSyllabusFile] = useState<File | null>(null)
   const [scheduleFile, setScheduleFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<{
     courseId: string
@@ -29,12 +31,27 @@ export default function OnboardingPage() {
 
     setError(null)
     setLoading(true)
+    setUploadProgress(0)
 
     try {
+      // Simulate upload progress (since we don't have real progress from backend yet)
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 200)
+
       const response = await uploadFiles({
         syllabus: syllabusFile,
         schedule: scheduleFile,
       })
+
+      clearInterval(progressInterval)
+      setUploadProgress(100)
 
       if (response.success) {
         setSuccess({
@@ -43,15 +60,39 @@ export default function OnboardingPage() {
           scheduleEntries: response.scheduleEntries,
         })
 
-        // Redirect after a short delay
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 2000)
+        // Get user role to determine redirect destination
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+          // Redirect based on role
+          setTimeout(() => {
+            if (profile?.role === 'professor') {
+              router.push('/dashboard')
+            } else {
+              router.push('/student/chat')
+            }
+          }, 2000)
+        } else {
+          // Default redirect
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 2000)
+        }
       } else {
+        setUploadProgress(0)
         setError(response.error || 'Upload failed')
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to upload files')
+      setUploadProgress(0)
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to upload files'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -76,6 +117,7 @@ export default function OnboardingPage() {
             onFileSelect={setSyllabusFile}
             maxSizeMB={10}
             disabled={loading}
+            uploadProgress={loading ? uploadProgress : undefined}
           />
 
           <FileUpload
@@ -85,6 +127,7 @@ export default function OnboardingPage() {
             onFileSelect={setScheduleFile}
             maxSizeMB={5}
             disabled={loading}
+            uploadProgress={loading ? uploadProgress : undefined}
           />
 
           {error && (

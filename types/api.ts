@@ -54,6 +54,7 @@ export interface Announcement {
 }
 
 export interface CreateAnnouncementRequest {
+  courseId?: string // Optional: will use professor's first course if not provided
   weekNumber: number
   title: string
   content: string

@@ -1,11 +1,28 @@
 import apiClient from './client';
 import type { Escalation } from '@/types/api';
 
+export interface EscalationsResponse {
+  escalations: Escalation[];
+  patterns?: Array<{
+    category: string;
+    count: number;
+  }>;
+}
+
 /**
  * Get all escalations
+ * Returns escalations with optional pattern detection data
  */
-export async function getEscalations(): Promise<Escalation[]> {
-  const response = await apiClient.get<Escalation[]>('/escalations');
+export async function getEscalations(): Promise<EscalationsResponse> {
+  const response = await apiClient.get<EscalationsResponse | Escalation[]>('/escalations');
+  
+  // Handle backward compatibility: if response is array, wrap it
+  if (Array.isArray(response.data)) {
+    return {
+      escalations: response.data,
+    };
+  }
+  
   return response.data;
 }
 

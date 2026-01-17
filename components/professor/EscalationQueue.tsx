@@ -26,10 +26,17 @@ export function EscalationQueue() {
     try {
       setLoading(true)
       setError(null)
-      const data = await getEscalations()
+      const response = await getEscalations()
+      // Handle new response format with escalations array
+      const escalationsList = response.escalations || []
       // Filter for pending escalations
-      const pending = data.filter(e => e.status === 'pending')
+      const pending = escalationsList.filter(e => e.status === 'pending')
       setEscalations(pending)
+      // Store patterns if available (for future use in UI)
+      if (response.patterns && response.patterns.length > 0) {
+        // Patterns available: response.patterns
+        // Example: [{ category: 'Extension Request', count: 3 }]
+      }
     } catch (err) {
       console.error('Error loading escalations:', err)
       setError('Failed to load escalations')

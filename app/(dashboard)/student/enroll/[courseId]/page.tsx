@@ -643,6 +643,7 @@ export default function EnrollCoursePage() {
               <Label htmlFor="joinCode">Join Code</Label>
               <Input
                 id="joinCode"
+                name="joinCode"
                 type="text"
                 placeholder="Enter join code"
                 value={joinCode}
@@ -654,6 +655,7 @@ export default function EnrollCoursePage() {
                 className="text-center text-2xl font-mono tracking-widest"
                 maxLength={10}
                 disabled={submitting}
+                autoComplete="off"
               />
               <p className="text-xs text-muted-foreground">
                 Enter the join code provided by your professor

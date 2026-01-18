@@ -74,11 +74,13 @@ export async function scrapeRedditHTML(
 
     const posts: RedditPost[] = []
 
-    // Old Reddit HTML structure - posts are in div.thing elements with class "thing"
-    // Old Reddit is server-rendered HTML, perfect for scraping!
+    // Old Reddit search results use div.search-result, not div.thing!
+    // Regular listings use div.thing, but search pages use different structure
     const postSelectors = [
-      'div.thing[data-subreddit]',  // Old Reddit structure
-      'div.thing',                   // Fallback for old Reddit
+      'div.search-result',           // Old Reddit search results structure (PRIMARY)
+      'div.search-result-link',      // Old Reddit search result links
+      'div.thing[data-subreddit]',   // Old Reddit regular listing structure
+      'div.thing',                   // Fallback for old Reddit regular listings
       'shreddit-post',               // Try modern Reddit if somehow loaded
       'article[data-testid="post-container"]',
       'div.Post',
@@ -109,12 +111,13 @@ export async function scrapeRedditHTML(
       try {
         const $post = $(element)
         
-        // Check if this is old Reddit structure (div.thing)
-        const isOldReddit = $post.hasClass('thing') || $post.attr('class')?.includes('thing')
+        // Check if this is old Reddit structure (div.thing or div.search-result)
+        const isOldReddit = $post.hasClass('thing') || $post.hasClass('search-result') || $post.attr('class')?.includes('thing') || $post.attr('class')?.includes('search-result')
         
-        // Extract title - Old Reddit uses a.title, Modern Reddit uses different selectors
+        // Extract title - Old Reddit search uses a.search-title, regular listings use a.title
         const titleSelectors = isOldReddit ? [
-          'a.title',                    // Old Reddit primary
+          'a.search-title',             // Old Reddit search results primary
+          'a.title',                    // Old Reddit regular listings
           'a.title.may-blank',          // Old Reddit with class
           'p.title a',                  // Old Reddit alternative
         ] : [
@@ -134,10 +137,11 @@ export async function scrapeRedditHTML(
           }
         }
 
-        // Extract URL/permalink - Old Reddit uses a.title href
+        // Extract URL/permalink - Old Reddit search uses a.search-title, regular uses a.title
         let url = ''
         const linkSelectors = isOldReddit ? [
-          'a.title',                    // Old Reddit primary
+          'a.search-title',             // Old Reddit search results primary
+          'a.title',                    // Old Reddit regular listings
           'a.title.may-blank',          // Old Reddit with class
           'p.title a',                  // Old Reddit alternative
         ] : [
@@ -166,9 +170,10 @@ export async function scrapeRedditHTML(
           }
         }
 
-        // Extract score - Old Reddit uses .score.unvoted, Modern Reddit uses different selectors
+        // Extract score - Old Reddit search uses .search-score, regular uses .score.unvoted
         const scoreSelectors = isOldReddit ? [
-          '.score.unvoted',             // Old Reddit primary
+          '.search-score',              // Old Reddit search results primary
+          '.score.unvoted',             // Old Reddit regular listings
           '.score',                     // Old Reddit fallback
           '.score.likes',               // Old Reddit with likes
         ] : [
@@ -195,9 +200,11 @@ export async function scrapeRedditHTML(
           }
         }
 
-        // Extract selftext/excerpt - Old Reddit uses .usertext-body
+        // Extract selftext/excerpt - Old Reddit search uses .search-result-body .md, regular uses .usertext-body
         const textSelectors = isOldReddit ? [
-          '.usertext-body',             // Old Reddit primary
+          '.search-result-body .md',    // Old Reddit search results primary
+          '.search-expando .md',        // Old Reddit search expando
+          '.usertext-body',             // Old Reddit regular listings
           '.md',                        // Old Reddit markdown content
           'div.usertext-body p',        // Old Reddit nested
         ] : [
@@ -215,11 +222,12 @@ export async function scrapeRedditHTML(
           }
         }
 
-        // Extract timestamp/date - Old Reddit uses time tag with title attribute
+        // Extract timestamp/date - Old Reddit search uses .search-time time, regular uses time[title]
         let date = new Date().toLocaleDateString() // Default to today if not found
         const timeSelectors = isOldReddit ? [
-          'time',                       // Old Reddit primary (has title attribute)
-          'time[title]',                // Old Reddit with title
+          '.search-time time',          // Old Reddit search results primary
+          'time[title]',                // Old Reddit with title attribute
+          'time',                       // Old Reddit fallback
         ] : [
           'time',
           '[data-testid="post-timestamp"]',

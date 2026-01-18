@@ -106,41 +106,41 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-bold">Welcome back</CardTitle>
           <CardDescription className="text-base">
             Sign in to your SyllabusOS account
-          </CardDescription>
-        </CardHeader>
+        </CardDescription>
+      </CardHeader>
         <CardContent className="space-y-5">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
+          <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">
                 Email address
               </Label>
-              <Input
-                id="email"
-                type="email"
+            <Input
+              id="email"
+              type="email"
                 placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
                 className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
+            />
+          </div>
+          <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">
                 Password
               </Label>
-              <Input
-                id="password"
-                type="password"
+            <Input
+              id="password"
+              type="password"
                 placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
                 className="h-11"
-              />
-            </div>
-            {error && (
+            />
+          </div>
+          {error && (
               <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start gap-2">
                 <svg
                   className="w-4 h-4 mt-0.5 flex-shrink-0"
@@ -156,23 +156,23 @@ export default function LoginPage() {
                   />
                 </svg>
                 <span>{error}</span>
-              </div>
-            )}
+            </div>
+          )}
             <Button 
               type="submit" 
               className="w-full h-11 text-base font-medium shadow-sm hover:shadow-md transition-shadow" 
               disabled={loading}
             >
-              {loading ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
+            {loading ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
                   Signing in...
-                </>
-              ) : (
+              </>
+            ) : (
                 'Sign in'
-              )}
-            </Button>
-          </form>
+            )}
+          </Button>
+        </form>
           <div className="relative py-4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t"></div>
@@ -187,10 +187,10 @@ export default function LoginPage() {
               className="text-sm font-medium text-primary hover:underline"
             >
               Create an account →
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
     </div>
   );
 }

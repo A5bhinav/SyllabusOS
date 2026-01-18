@@ -6,27 +6,44 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getEscalations } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight, Bell } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
-type FilterStatus = 'all' | 'pending' | 'resolved'
+type FilterStatus = 'pending' | 'resolved'
 
 export function StudentEscalations() {
   const [escalations, setEscalations] = useState<Escalation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('resolved')
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [viewedResponses, setViewedResponses] = useState<Set<string>>(new Set())
 
   // Filter escalations by status
   const filteredEscalations = escalations.filter(escalation => {
-    if (filterStatus === 'all') return true
     return escalation.status === filterStatus
   })
 
+  // Calculate current escalation early (needed for useEffect dependency)
+  const currentEscalation = filteredEscalations[currentIndex] || null
+
+  // Load viewed responses from localStorage on mount, then load escalations
   useEffect(() => {
-    loadEscalations()
+    const stored = localStorage.getItem('escalation_viewed_responses')
+    if (stored) {
+      try {
+        const viewed = JSON.parse(stored) as string[]
+        setViewedResponses(new Set(viewed))
+        // Load escalations after viewed responses are loaded
+        loadEscalations(new Set(viewed))
+      } catch (err) {
+        console.error('Error loading viewed responses:', err)
+        loadEscalations(new Set())
+      }
+    } else {
+      loadEscalations(new Set())
+    }
   }, [])
 
   // Reset to first escalation when filter changes
@@ -34,18 +51,31 @@ export function StudentEscalations() {
     setCurrentIndex(0)
   }, [filterStatus, filteredEscalations.length])
 
-  async function loadEscalations() {
+  async function loadEscalations(viewedSet?: Set<string>) {
     try {
       setLoading(true)
       setError(null)
-      const response = await getEscalations()
-      // Handle new response format with escalations array
-      const escalationsList = response.escalations || []
-      // Sort by created date, newest first
-      const sorted = escalationsList.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      const data = await getEscalations()
+      // Sort: resolved first, then pending. Within each group, sort by created date (newest first)
+      const sorted = data.sort((a, b) => {
+        // Resolved comes before pending
+        if (a.status === 'resolved' && b.status === 'pending') return -1
+        if (a.status === 'pending' && b.status === 'resolved') return 1
+        // Within same status, sort by date (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
       setEscalations(sorted)
+      
+      // Use provided viewedSet or current state, but ensure it's available
+      const currentViewed = viewedSet || viewedResponses
+      
+      // Only dispatch event if we have valid data
+      if (sorted && currentViewed) {
+        // Trigger notification update in parent (via custom event)
+        window.dispatchEvent(new CustomEvent('escalations-updated', { 
+          detail: { escalations: sorted, viewedResponses: currentViewed } 
+        }))
+      }
     } catch (err) {
       console.error('Error loading escalations:', err)
       setError('Failed to load escalations')
@@ -53,6 +83,37 @@ export function StudentEscalations() {
       setLoading(false)
     }
   }
+
+  // Mark response as viewed when user sees it
+  useEffect(() => {
+    if (currentEscalation?.response && currentEscalation.id) {
+      // Check if already viewed using current state
+      setViewedResponses(prevViewed => {
+        // Mark as viewed when escalation with response is displayed
+        if (!prevViewed.has(currentEscalation.id!)) {
+          const newViewed = new Set(prevViewed)
+          newViewed.add(currentEscalation.id!)
+          
+          // Save to localStorage
+          localStorage.setItem('escalation_viewed_responses', JSON.stringify(Array.from(newViewed)))
+          
+          // Trigger notification update - use current escalations state via closure
+          // Delay slightly to ensure state updates are processed
+          requestAnimationFrame(() => {
+            window.dispatchEvent(new CustomEvent('escalations-updated', { 
+              detail: { 
+                escalations: escalations, 
+                viewedResponses: newViewed 
+              } 
+            }))
+          })
+          
+          return newViewed
+        }
+        return prevViewed
+      })
+    }
+  }, [currentEscalation?.id, currentEscalation?.response])
 
   if (loading) {
     return (
@@ -72,8 +133,13 @@ export function StudentEscalations() {
 
   const pendingCount = escalations.filter(e => e.status === 'pending').length
   const resolvedCount = escalations.filter(e => e.status === 'resolved').length
+  // Only count responses that haven't been viewed
+  const unviewedResponsesCount = escalations.filter(e => 
+    e.response && 
+    e.status === 'resolved' && 
+    !viewedResponses.has(e.id)
+  ).length
 
-  const currentEscalation = filteredEscalations[currentIndex] || null
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex < filteredEscalations.length - 1
 
@@ -99,13 +165,6 @@ export function StudentEscalations() {
           </div>
           {escalations.length > 0 && (
             <div className="flex items-center gap-2">
-              <Button
-                variant={filterStatus === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('all')}
-              >
-                All ({escalations.length})
-              </Button>
               <Button
                 variant={filterStatus === 'pending' ? 'default' : 'outline'}
                 size="sm"
@@ -150,7 +209,7 @@ export function StudentEscalations() {
               <>
                 <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <p className="text-sm font-medium text-foreground mb-1">
-                  No {filterStatus === 'all' ? '' : filterStatus} escalations found
+                  No {filterStatus} escalations found
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Try selecting a different filter.
@@ -220,6 +279,14 @@ export function StudentEscalations() {
                             <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                             <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">
                               Pending
+                            </span>
+                          </div>
+                        )}
+                        {currentEscalation.response && !viewedResponses.has(currentEscalation.id) && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/30">
+                            <Bell className="h-3 w-3 text-primary" />
+                            <span className="text-xs font-semibold text-primary">
+                              New Response
                             </span>
                           </div>
                         )}

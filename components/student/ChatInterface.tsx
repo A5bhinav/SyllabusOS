@@ -319,12 +319,12 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
           ) : (
             <>
               <AnimatePresence mode="popLayout">
-                {optimisticMessages.map((message, index) => {
-                  const isLastAssistant = !isLoading && 
-                    message.role === 'assistant' && 
-                    index === optimisticMessages.length - 1
-                  
-                  return (
+              {optimisticMessages.map((message, index) => {
+                const isLastAssistant = !isLoading && 
+                  message.role === 'assistant' && 
+                  index === optimisticMessages.length - 1
+                
+                return (
                     <motion.div
                       key={message.id}
                       initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -336,17 +336,17 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
                       }}
                       className="mb-4"
                     >
-                      <MessageBubble message={message} />
-                      
-                      {/* Show suggested follow-ups after the last assistant message */}
-                      {isLastAssistant && suggestedFollowUps.length > 0 && (
+                    <MessageBubble message={message} />
+                    
+                    {/* Show suggested follow-ups after the last assistant message */}
+                    {isLastAssistant && suggestedFollowUps.length > 0 && (
                         <motion.div
                           initial={{ opacity: 0, y: -5 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.2, duration: 0.3 }}
                           className="flex flex-wrap gap-2 ml-2 mt-3"
                         >
-                          {suggestedFollowUps.map((suggestion, idx) => (
+                        {suggestedFollowUps.map((suggestion, idx) => (
                             <motion.div
                               key={idx}
                               initial={{ opacity: 0, scale: 0.9 }}
@@ -355,24 +355,24 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                             >
-                              <Button
-                                variant="outline"
-                                size="sm"
+                          <Button
+                            variant="outline"
+                            size="sm"
                                 className="text-xs h-auto py-2 px-3 shadow-sm hover:shadow-md transition-shadow"
-                                onClick={() => handleSuggestedFollowUp(suggestion)}
-                              >
-                                {suggestion}
-                              </Button>
+                            onClick={() => handleSuggestedFollowUp(suggestion)}
+                          >
+                            {suggestion}
+                          </Button>
                             </motion.div>
-                          ))}
+                        ))}
                         </motion.div>
-                      )}
+                    )}
                     </motion.div>
-                  )
-                })}
+                )
+              })}
               </AnimatePresence>
               <AnimatePresence>
-                {isLoading && (
+          {isLoading && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -381,7 +381,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
                     className="flex justify-start mb-4"
                   >
                     <div className="bg-muted/80 rounded-xl border border-border px-4 py-3 flex items-center space-x-3 shadow-sm">
-                      <LoadingSpinner size="sm" />
+                <LoadingSpinner size="sm" />
                       <div className="flex items-center space-x-1">
                         <span className="text-sm text-muted-foreground font-medium">AI is thinking</span>
                         <motion.div
@@ -408,10 +408,10 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
                             />
                           ))}
                         </motion.div>
-                      </div>
-                    </div>
+              </div>
+            </div>
                   </motion.div>
-                )}
+              )}
               </AnimatePresence>
             </>
           )}

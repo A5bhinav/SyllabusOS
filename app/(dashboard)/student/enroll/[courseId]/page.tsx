@@ -527,16 +527,16 @@ export default function EnrollCoursePage() {
           </div>
 
           {/* Reddit Review Links */}
-          {courseFeedback.redditPosts && courseFeedback.redditPosts.length > 0 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <ExternalLink className="h-5 w-5 text-primary" />
-                  <CardTitle>Based on Reddit Reviews</CardTitle>
-                </div>
-                <CardDescription>Student discussions about this course from r/UCSC</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ExternalLink className="h-5 w-5 text-primary" />
+                <CardTitle>Based on Reddit Reviews</CardTitle>
+              </div>
+              <CardDescription>Student discussions about this course from r/UCSC</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {courseFeedback.redditPosts && courseFeedback.redditPosts.length > 0 ? (
                 <div className="space-y-3">
                   {courseFeedback.redditPosts.map((post, idx) => (
                     <a
@@ -566,9 +566,29 @@ export default function EnrollCoursePage() {
                     </a>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="py-8 text-center">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <ExternalLink className="h-8 w-8 opacity-50" />
+                    <p className="text-sm font-medium">No Reddit posts found</p>
+                    <p className="text-xs">
+                      We couldn't find recent discussions about this course on r/UCSC.
+                      <br />
+                      The feedback above is based on general course data.
+                    </p>
+                    <a
+                      href={`https://www.reddit.com/r/UCSC/search?q=${encodeURIComponent(getCourseCode(course?.name || '') || '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline mt-2"
+                    >
+                      Search r/UCSC for this course →
+                    </a>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       ) : null}
 

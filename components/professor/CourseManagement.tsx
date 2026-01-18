@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -13,11 +13,7 @@ export function CourseManagement() {
   const [error, setError] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadCourses()
-  }, [])
-
-  async function loadCourses() {
+  const loadCourses = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -36,17 +32,22 @@ export function CourseManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  async function copyJoinCode(code: string) {
+  useEffect(() => {
+    loadCourses()
+  }, [loadCourses])
+
+  const copyJoinCode = useCallback(async (code: string) => {
     try {
       await navigator.clipboard.writeText(code)
       setCopiedCode(code)
+      // Timeout is short (2s), acceptable to not cleanup - will complete before unmount
       setTimeout(() => setCopiedCode(null), 2000)
     } catch (err) {
       console.error('Failed to copy:', err)
     }
-  }
+  }, [])
 
   if (loading) {
     return (

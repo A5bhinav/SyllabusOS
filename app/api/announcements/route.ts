@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
+import { getProfessorCourses } from '@/lib/utils/course-cache'
 import type { Announcement, CreateAnnouncementRequest } from '@/types/api'
 
 /**
@@ -55,48 +56,31 @@ export async function GET(request: NextRequest) {
       ? parseInt(searchParams.get('weekNumber')!, 10)
       : null
 
-    // Build query
+    // Build query - only select needed fields
     let query = supabase
       .from('announcements')
-      .select('*')
+      .select('id, course_id, week_number, title, content, status, created_at, updated_at, published_at')
       .order('week_number', { ascending: false })
       .order('created_at', { ascending: false })
 
     // Apply filters based on role
     if (profile.role === 'professor') {
-      // Professors see all announcements for their courses
-      if (courseId) {
-        // Verify the course belongs to this professor
-        const { data: course } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('id', courseId)
-          .eq('professor_id', user.id)
-          .single()
+      // Professors see all announcements for their courses (use cached query)
+      const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
-        if (course) {
-          query = query.eq('course_id', courseId)
-        } else {
-          return NextResponse.json(
-            { error: 'Course not found or access denied' },
-            { status: 404 }
-          )
-        }
-      } else {
-        // Get all courses for this professor
-        const { data: courses } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('professor_id', user.id)
-
-        if (courses && courses.length > 0) {
-          const courseIds = courses.map((c) => c.id)
-          query = query.in('course_id', courseIds)
-        } else {
-          // No courses, return empty array
-          return NextResponse.json([])
-        }
+      if (courseId && !singleCourse) {
+        return NextResponse.json(
+          { error: 'Course not found or access denied' },
+          { status: 404 }
+        )
       }
+
+      if (!courseIds || courseIds.length === 0) {
+        // No courses, return empty array
+        return NextResponse.json([])
+      }
+
+      query = query.in('course_id', courseIds)
     } else {
       // Students see only published announcements
       query = query.eq('status', 'published')
@@ -113,6 +97,10 @@ export async function GET(request: NextRequest) {
     if (weekNumber !== null) {
       query = query.eq('week_number', weekNumber)
     }
+
+    // Add limit to prevent loading too many announcements (max 200)
+    const limit = parseInt(searchParams.get('limit') || '200', 10)
+    query = query.limit(Math.min(limit, 200))
 
     const { data: announcements, error: announcementsError } = await query
 
@@ -230,33 +218,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // If courseId not provided, use professor's first course
+    // If courseId not provided, use professor's first course (use cached query)
     if (!courseId || typeof courseId !== 'string') {
-      const { data: courses } = await supabase
-        .from('courses')
-        .select('id')
-        .eq('professor_id', user.id)
-        .limit(1)
+      const { courseIds } = await getProfessorCourses(supabase, user.id, null)
 
-      if (!courses || courses.length === 0) {
+      if (!courseIds || courseIds.length === 0) {
         return NextResponse.json(
           { error: 'No courses found. Please create a course first.' },
           { status: 400 }
         )
       }
 
-      courseId = courses[0].id
+      courseId = courseIds[0]
     }
 
-    // Verify course exists and belongs to this professor
-    const { data: course, error: courseError } = await supabase
-      .from('courses')
-      .select('id')
-      .eq('id', courseId)
-      .eq('professor_id', user.id)
-      .single()
+    // Verify course exists and belongs to this professor (use cached query)
+    const { singleCourse } = await getProfessorCourses(supabase, user.id, courseId)
 
-    if (courseError || !course) {
+    if (!singleCourse) {
       return NextResponse.json(
         { error: 'Course not found or access denied' },
         { status: 404 }

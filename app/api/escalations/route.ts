@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
+import { getProfessorCourses } from '@/lib/utils/course-cache'
+import { generateVideoAsync } from '@/lib/video/worker'
 import type { Escalation } from '@/types/api'
+import type { EscalationContext } from '@/lib/video/generator'
 
 /**
  * GET /api/escalations
@@ -66,6 +69,9 @@ export async function GET(request: NextRequest) {
         response,
         responded_at,
         responded_by,
+        video_url,
+        video_generated_at,
+        video_generation_status,
         profiles!escalations_student_id_fkey (
           name,
           email
@@ -75,39 +81,25 @@ export async function GET(request: NextRequest) {
 
     // Apply filters based on role
     if (profile.role === 'professor') {
-      // Professors see escalations for their courses
-      if (courseId) {
-        // Verify the course belongs to this professor
-        const { data: course } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('id', courseId)
-          .eq('professor_id', user.id)
-          .single()
+      // Professors see escalations for their courses (use cached query)
+      const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
-        if (course) {
-          query = query.eq('course_id', courseId)
-        } else {
-          return NextResponse.json(
-            { error: 'Course not found or access denied' },
-            { status: 404 }
-          )
-        }
-      } else {
-        // Get all courses for this professor
-        const { data: courses } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('professor_id', user.id)
-
-        if (courses && courses.length > 0) {
-          const courseIds = courses.map((c) => c.id)
-          query = query.in('course_id', courseIds)
-        } else {
-          // No courses, return empty array
-          return NextResponse.json([])
-        }
+      if (courseId && !singleCourse) {
+        return NextResponse.json(
+          { error: 'Course not found or access denied' },
+          { status: 404 }
+        )
       }
+
+      if (!courseIds || courseIds.length === 0) {
+        // No courses, return empty array
+        return NextResponse.json({
+          escalations: [],
+          patterns: undefined,
+        })
+      }
+
+      query = query.in('course_id', courseIds)
     } else {
       // Students see only their own escalations
       query = query.eq('student_id', user.id)
@@ -120,6 +112,11 @@ export async function GET(request: NextRequest) {
     if (status) {
       query = query.eq('status', status)
     }
+
+    // Add limit to prevent loading too many escalations at once (max 100)
+    // For pagination, add offset parameter later if needed
+    const limit = parseInt(searchParams.get('limit') || '100', 10)
+    query = query.limit(Math.min(limit, 100))
 
     const { data: escalations, error: escalationsError } = await query
 
@@ -142,6 +139,9 @@ export async function GET(request: NextRequest) {
       response: e.response || null,
       respondedAt: e.responded_at || null,
       respondedBy: e.responded_by || null,
+      videoUrl: e.video_url || null,
+      videoGeneratedAt: e.video_generated_at || null,
+      videoGenerationStatus: e.video_generation_status || null,
     }))
 
     // Pattern detection: Count escalations by category for the past week
@@ -323,17 +323,57 @@ export async function PUT(request: NextRequest) {
       updateData.response = response
       updateData.responded_at = new Date().toISOString()
       updateData.responded_by = user.id
+      // Trigger video generation automatically
+      updateData.video_generation_status = 'pending'
     }
 
     const { data: updatedEscalation, error: updateError } = await supabase
       .from('escalations')
       .update(updateData)
       .eq('id', escalationId)
-      .select()
+      .select(`
+        id,
+        status,
+        resolved_at,
+        response,
+        responded_at,
+        responded_by,
+        student_id,
+        category,
+        courses (
+          name
+        ),
+        profiles!escalations_student_id_fkey (
+          name
+        )
+      `)
       .single()
 
     if (updateError || !updatedEscalation) {
       throw updateError || new Error('Failed to update escalation')
+    }
+
+    // Trigger async video generation if response was provided
+    if (response !== undefined && response.trim().length > 0) {
+      // Get student and course context
+      const studentProfile = Array.isArray(updatedEscalation.profiles)
+        ? updatedEscalation.profiles[0]
+        : updatedEscalation.profiles
+      const course = Array.isArray(updatedEscalation.courses)
+        ? updatedEscalation.courses[0]
+        : updatedEscalation.courses
+
+      const context: EscalationContext = {
+        studentName: studentProfile?.name || undefined,
+        category: updatedEscalation.category || undefined,
+        courseName: course?.name || undefined,
+      }
+
+      // Trigger video generation asynchronously (non-blocking)
+      generateVideoAsync(updatedEscalation.id, response, context).catch(error => {
+        console.error(`[Escalations API] Failed to trigger video generation:`, error)
+        // Don't fail the request if video generation fails
+      })
     }
 
     const duration = Date.now() - startTime

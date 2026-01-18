@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getEscalations } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight, Bell } from 'lucide-react'
+import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight, Bell, Video } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -20,10 +20,10 @@ export function StudentEscalations() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [viewedResponses, setViewedResponses] = useState<Set<string>>(new Set())
 
-  // Filter escalations by status
-  const filteredEscalations = escalations.filter(escalation => {
-    return escalation.status === filterStatus
-  })
+  // Memoize filtered escalations to prevent recalculation on every render
+  const filteredEscalations = useMemo(() => {
+    return escalations.filter(escalation => escalation.status === filterStatus)
+  }, [escalations, filterStatus])
 
   // Calculate current escalation early (needed for useEffect dependency)
   const currentEscalation = filteredEscalations[currentIndex] || null
@@ -51,13 +51,16 @@ export function StudentEscalations() {
     setCurrentIndex(0)
   }, [filterStatus, filteredEscalations.length])
 
-  async function loadEscalations(viewedSet?: Set<string>) {
+  const loadEscalations = useCallback(async (viewedSet?: Set<string>) => {
     try {
       setLoading(true)
       setError(null)
       const data = await getEscalations()
+      // Get escalations array from response
+      const escalationsList = data.escalations || []
       // Sort: resolved first, then pending. Within each group, sort by created date (newest first)
-      const sorted = data.sort((a, b) => {
+      // Use toSorted to avoid mutating the original array (better for React)
+      const sorted = [...escalationsList].sort((a, b) => {
         // Resolved comes before pending
         if (a.status === 'resolved' && b.status === 'pending') return -1
         if (a.status === 'pending' && b.status === 'resolved') return 1
@@ -82,7 +85,7 @@ export function StudentEscalations() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Mark response as viewed when user sees it
   useEffect(() => {
@@ -315,6 +318,25 @@ export function StudentEscalations() {
                           <MessageSquare className="h-5 w-5 text-primary" />
                           <p className="text-sm font-semibold text-primary">Professor's Response</p>
                         </div>
+                        
+                        {/* Video player if available */}
+                        {currentEscalation.videoUrl && (
+                          <div className="rounded-lg overflow-hidden border border-primary/20 bg-black">
+                            <video
+                              controls
+                              className="w-full max-w-md mx-auto"
+                              src={currentEscalation.videoUrl}
+                              preload="metadata"
+                            >
+                              Your browser does not support the video tag.
+                            </video>
+                            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1 justify-center">
+                              <Video className="h-3 w-3" />
+                              Video response available
+                            </p>
+                          </div>
+                        )}
+                        
                         <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg p-4">
                           <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                             {currentEscalation.response}

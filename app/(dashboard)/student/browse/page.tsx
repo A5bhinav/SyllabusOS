@@ -4,15 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { BookOpen, CheckCircle, PlusCircle, XCircle, BarChart3, TrendingUp, TrendingDown, ThumbsUp, ThumbsDown, Star, ExternalLink } from 'lucide-react'
 import type { CourseFeedback } from '@/app/api/courses/[courseCode]/feedback/route'
@@ -180,6 +171,12 @@ export default function BrowseCoursesPage() {
     loadCourses()
   }, [])
 
+  // Generate slug from course name (e.g., "CMPS 101" -> "cmps-101")
+  function getCourseSlug(course: Course): string {
+    const courseCode = course.name.split(' - ')[0] // e.g., "CMPS 101"
+    return courseCode.toLowerCase().replace(/\s+/g, '-') // e.g., "cmps-101"
+  }
+
   function handleCourseClick(course: Course) {
     if (course.isEnrolled) {
       // If already enrolled, go directly to chat
@@ -187,11 +184,9 @@ export default function BrowseCoursesPage() {
       return
     }
     
-    // Open enrollment dialog
-    setSelectedCourse(course)
-    setJoinCode('') // Don't pre-fill join code
-    setEnrollDialogOpen(true)
-    setEnrollError(null)
+    // Navigate to course detail page using slug (e.g., /student/courses/cmps-101)
+    const slug = getCourseSlug(course)
+    router.push(`/student/courses/${slug}`)
   }
 
   // Extract course code from course name (e.g., "CSE 101" from "CSE 101 - Introduction to Data Structures")

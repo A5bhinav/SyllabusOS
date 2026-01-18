@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getPulseReport } from '@/lib/api/pulse'
@@ -15,11 +15,7 @@ export function PulseReport() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadPulseData()
-  }, [])
-
-  async function loadPulseData() {
+  const loadPulseData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -31,7 +27,11 @@ export function PulseReport() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadPulseData()
+  }, [loadPulseData])
 
   if (loading) {
     return (
@@ -71,13 +71,13 @@ export function PulseReport() {
     avgResponseTime: 0,
   }
 
-  // Prepare data for charts
-  const lineChartData =
-    pulseData.dailyTrends?.map((trend) => ({
-      date: format(new Date(trend.date), 'MMM d'),
-      fullDate: trend.date,
-      queries: trend.count,
-    })) || []
+  // Chart data - removed useMemo to avoid infinite re-render loops
+  // The computation is cheap (small arrays), and memoization was causing React error #310
+  const lineChartData = pulseData.dailyTrends?.map((trend) => ({
+    date: format(new Date(trend.date), 'MMM d'),
+    fullDate: trend.date,
+    queries: trend.count,
+  })) || []
 
   const pieChartData = pulseData.queryDistribution
     ? [
@@ -224,11 +224,11 @@ export function PulseReport() {
                               maxWidth: '200px',
                               wordWrap: 'break-word',
                             }}
-                            formatter={(value: number | undefined, name: string) => [
+                            formatter={(value: number | undefined, name: string | undefined) => [
                               `${value ?? 0} ${value === 1 ? 'query' : 'queries'}`,
                               name === 'Escalated' 
                                 ? 'Needs Professor Review' 
-                                : name
+                                : name || ''
                             ]}
                             labelStyle={{ 
                               fontWeight: 600, 

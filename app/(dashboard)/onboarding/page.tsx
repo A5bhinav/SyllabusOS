@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,11 +21,40 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [hasExistingCourses, setHasExistingCourses] = useState<boolean | null>(null)
   const [success, setSuccess] = useState<{
     courseId: string
     chunksCreated: number
     scheduleEntries: number
   } | null>(null)
+
+  // Check if user has existing courses (indicates they navigated from dashboard)
+  useEffect(() => {
+    async function checkExistingCourses() {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          setHasExistingCourses(false)
+          return
+        }
+
+        const { data: courses } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('professor_id', user.id)
+          .limit(1)
+
+        setHasExistingCourses((courses && courses.length > 0) || false)
+      } catch (err) {
+        console.error('Error checking existing courses:', err)
+        setHasExistingCourses(false)
+      }
+    }
+
+    checkExistingCourses()
+  }, [])
 
   const handleUpload = async () => {
     if (!syllabusFile || !scheduleFile) {
@@ -128,7 +157,7 @@ export default function OnboardingPage() {
 
   return (
     <>
-      <ProfessorNav />
+      {hasExistingCourses && <ProfessorNav />}
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         <div className="container mx-auto max-w-2xl py-8 px-4">
           <Card>

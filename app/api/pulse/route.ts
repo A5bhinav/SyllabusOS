@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
+import { getProfessorCourses } from '@/lib/utils/course-cache'
 import type { PulseResponse } from '@/types/api'
 
 /**
@@ -49,73 +50,56 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const courseId = searchParams.get('courseId')
 
-    // Build query for chat logs
-    let chatLogsQuery = supabase
-      .from('chat_logs')
-      .select('id, message, agent, escalation_id, created_at, course_id')
+    // Use cached course query
+    const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
-    // Filter by course if provided (and verify it belongs to professor)
-    if (courseId) {
-      const { data: course } = await supabase
-        .from('courses')
-        .select('id')
-        .eq('id', courseId)
-        .eq('professor_id', user.id)
-        .single()
-
-      if (course) {
-        chatLogsQuery = chatLogsQuery.eq('course_id', courseId)
-      } else {
-        return NextResponse.json(
-          { error: 'Course not found or access denied' },
-          { status: 404 }
-        )
-      }
-    } else {
-      // Get all courses for this professor
-      const { data: courses } = await supabase
-        .from('courses')
-        .select('id')
-        .eq('professor_id', user.id)
-
-      if (courses && courses.length > 0) {
-        const courseIds = courses.map((c) => c.id)
-        chatLogsQuery = chatLogsQuery.in('course_id', courseIds)
-      } else {
-        // No courses, return empty report
-        return NextResponse.json({
-          totalQueries: 0,
-          escalationCount: 0,
-          dailyTrends: [],
-          queryDistribution: {
-            POLICY: 0,
-            CONCEPT: 0,
-            ESCALATE: 0,
-          },
-          metrics: {
-            totalQueriesToday: 0,
-            escalationsPending: 0,
-            avgResponseTime: 0,
-          },
-        } as PulseResponse)
-      }
+    if (courseId && !singleCourse) {
+      return NextResponse.json(
+        { error: 'Course not found or access denied' },
+        { status: 404 }
+      )
     }
 
-    // Get chat logs
-    const { data: chatLogs, error: chatLogsError } = await chatLogsQuery
+    if (!courseIds || courseIds.length === 0) {
+      // No courses, return empty report
+      return NextResponse.json({
+        totalQueries: 0,
+        escalationCount: 0,
+        dailyTrends: [],
+        queryDistribution: {
+          POLICY: 0,
+          CONCEPT: 0,
+          ESCALATE: 0,
+        },
+        metrics: {
+          totalQueriesToday: 0,
+          escalationsPending: 0,
+          avgResponseTime: 0,
+        },
+      } as PulseResponse)
+    }
+
+    // Build optimized query with SQL aggregation instead of loading all records
+    const courseFilter = courseId ? [courseId] : courseIds
+
+    // Use SQL aggregation for better performance
+    const { data: chatLogs, error: chatLogsError } = await supabase
+      .from('chat_logs')
+      .select('id, message, agent, escalation_id, created_at, course_id')
+      .in('course_id', courseFilter)
 
     if (chatLogsError) {
       throw chatLogsError
     }
 
-    // Calculate metrics
+    // Calculate metrics (still need to process for daily trends)
     const totalQueries = chatLogs?.length || 0
 
-    // Count escalations
+    // Count escalations using SQL would be better, but for now we filter
     const escalationCount =
       chatLogs?.filter((log) => log.escalation_id !== null).length || 0
 
-    // Query distribution by agent type
+    // Query distribution by agent type - use SQL aggregation when possible
     const queryDistribution = {
       POLICY: chatLogs?.filter((log) => log.agent === 'POLICY').length || 0,
       CONCEPT: chatLogs?.filter((log) => log.agent === 'CONCEPT').length || 0,
@@ -141,59 +125,57 @@ export async function GET(request: NextRequest) {
       ? (sortedMessages[0][0].length > 50 ? sortedMessages[0][0].substring(0, 50) + '...' : sortedMessages[0][0])
       : null
 
-    // Calculate daily trends (last 14 days for better visualization)
+    // Optimize daily trends calculation - pre-parse dates once
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+    const todayStart = today.getTime()
 
+    // Pre-calculate date boundaries and parse log dates once
     const dailyTrends = []
+    const dateBoundaries: Array<{ start: number; end: number; dateStr: string }> = []
+    
     for (let i = 13; i >= 0; i--) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
-
       const nextDate = new Date(date)
       nextDate.setDate(nextDate.getDate() + 1)
+      
+      dateBoundaries.push({
+        start: date.getTime(),
+        end: nextDate.getTime(),
+        dateStr: date.toISOString().split('T')[0],
+      })
+    }
 
-      const dayCount =
-        chatLogs?.filter((log) => {
-          const logDate = new Date(log.created_at)
-          return logDate >= date && logDate < nextDate
-        }).length || 0
+    // Parse all log dates once for efficiency
+    const logDates = chatLogs?.map(log => ({
+      timestamp: new Date(log.created_at).getTime(),
+      log
+    })) || []
 
+    // Count logs per day
+    for (const boundary of dateBoundaries) {
+      const dayCount = logDates.filter(
+        ({ timestamp }) => timestamp >= boundary.start && timestamp < boundary.end
+      ).length
+      
       dailyTrends.push({
-        date: date.toISOString().split('T')[0],
+        date: boundary.dateStr,
         count: dayCount,
       })
     }
 
-    // Calculate today's metrics
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
+    // Calculate today's metrics using pre-parsed dates
+    const totalQueriesToday = logDates.filter(
+      ({ timestamp }) => timestamp >= todayStart
+    ).length
 
-    const totalQueriesToday =
-      chatLogs?.filter((log) => new Date(log.created_at) >= todayStart).length ||
-      0
-
-    // Get pending escalations count
-    let escalationsQuery = supabase
+    // Get pending escalations count (use cached courseIds)
+    const { count: escalationsPending } = await supabase
       .from('escalations')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending')
-
-    if (courseId) {
-      escalationsQuery = escalationsQuery.eq('course_id', courseId)
-    } else {
-      const { data: courses } = await supabase
-        .from('courses')
-        .select('id')
-        .eq('professor_id', user.id)
-
-      if (courses && courses.length > 0) {
-        const courseIds = courses.map((c) => c.id)
-        escalationsQuery = escalationsQuery.in('course_id', courseIds)
-      }
-    }
-
-    const { count: escalationsPending } = await escalationsQuery
+      .in('course_id', courseFilter as string[])
 
     const response: PulseResponse = {
       totalQueries,

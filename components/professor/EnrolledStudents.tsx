@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -14,11 +14,7 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
   const [error, setError] = useState<string | null>(null)
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    loadEnrollments()
-  }, [courseId])
-
-  async function loadEnrollments() {
+  const loadEnrollments = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -31,9 +27,13 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [courseId])
 
-  async function handleRemoveStudent(student: EnrolledStudent) {
+  useEffect(() => {
+    loadEnrollments()
+  }, [loadEnrollments])
+
+  const handleRemoveStudent = useCallback(async (student: EnrolledStudent) => {
     const studentName = student.studentName || student.studentEmail || 'this student'
     const confirmed = window.confirm(
       `Are you sure you want to remove ${studentName} from ${student.courseName || 'the course'}? This action cannot be undone.`
@@ -61,7 +61,7 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
         return next
       })
     }
-  }
+  }, [])
 
   if (loading) {
     return (

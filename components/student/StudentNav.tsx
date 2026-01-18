@@ -94,13 +94,13 @@ export function StudentNav() {
           viewedSet = new Set<string>()
         }
         
-        // Only count responses that haven't been viewed
-        const unviewedResponses = escalations.filter(e => 
-          e && e.response && 
-          e.status === 'resolved' && 
-          e.id && 
-          !viewedSet.has(e.id)
-        ).length
+        // Optimized: use reduce instead of filter + length
+        const unviewedResponses = escalations.reduce((count, e) => {
+          if (e?.response && e.status === 'resolved' && e.id && !viewedSet.has(e.id)) {
+            return count + 1
+          }
+          return count
+        }, 0)
         
         // Only update if count actually changed
         setResponsesCount(prevCount => {
@@ -123,12 +123,13 @@ export function StudentNav() {
           // Ensure viewedSet is a Set object
           const viewedSetObj = viewedSet instanceof Set ? viewedSet : new Set(viewedSet)
           
-          const unviewedResponses = updatedEscalations.filter((e: any) => 
-            e && e.response && 
-            e.status === 'resolved' && 
-            e.id && 
-            !viewedSetObj.has(e.id)
-          ).length
+          // Optimized: use reduce instead of filter + length
+          const unviewedResponses = updatedEscalations.reduce((count: number, e: any) => {
+            if (e?.response && e.status === 'resolved' && e.id && !viewedSetObj.has(e.id)) {
+              return count + 1
+            }
+            return count
+          }, 0)
           
           // Only update if the count actually changed to prevent unnecessary re-renders
           setResponsesCount(prevCount => {

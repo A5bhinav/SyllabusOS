@@ -29,8 +29,9 @@ export async function scrapeRedditHTML(
   const limit = options.limit || 10
   const sort = options.sort || 'relevance'
 
-  // Build Reddit search URL - Reddit's HTML search page
-  const searchUrl = `https://www.reddit.com/r/${subreddit}/search/?q=${encodeURIComponent(query)}&restrict_sr=1&sort=${sort}&t=all`
+  // Use old.reddit.com - it has server-rendered HTML that we can actually scrape!
+  // Modern Reddit (www.reddit.com) is JavaScript-heavy and doesn't work with static HTML scraping
+  const searchUrl = `https://old.reddit.com/r/${subreddit}/search?q=${encodeURIComponent(query)}&restrict_sr=1&sort=${sort}&t=all`
 
   try {
     // Fetch HTML with proper headers to mimic a browser
@@ -53,12 +54,13 @@ export async function scrapeRedditHTML(
 
     const posts: RedditPost[] = []
 
-    // Modern Reddit HTML structure - posts are in shreddit-post or article elements
-    // Try multiple selectors to handle different Reddit layouts
+    // Old Reddit HTML structure - posts are in div.thing elements with class "thing"
+    // Old Reddit is server-rendered HTML, perfect for scraping!
     const postSelectors = [
-      'shreddit-post',
+      'div.thing[data-subreddit]',  // Old Reddit structure
+      'div.thing',                   // Fallback for old Reddit
+      'shreddit-post',               // Try modern Reddit if somehow loaded
       'article[data-testid="post-container"]',
-      'div[data-testid="post-container"]',
       'div.Post',
     ]
 
@@ -81,48 +83,69 @@ export async function scrapeRedditHTML(
       try {
         const $post = $(element)
         
-        // Extract title - try multiple selectors
-        const titleSelectors = [
+        // Check if this is old Reddit structure (div.thing)
+        const isOldReddit = $post.hasClass('thing') || $post.attr('class')?.includes('thing')
+        
+        // Extract title - Old Reddit uses a.title, Modern Reddit uses different selectors
+        const titleSelectors = isOldReddit ? [
+          'a.title',                    // Old Reddit primary
+          'a.title.may-blank',          // Old Reddit with class
+          'p.title a',                  // Old Reddit alternative
+        ] : [
           'h3[slot="title"]',
           'a[data-testid="post-title"]',
           'h3 a',
           'a[slot="title"]',
           'h3',
         ]
+        
         let title = ''
         for (const selector of titleSelectors) {
           const titleEl = $post.find(selector).first()
           if (titleEl.length > 0) {
             title = titleEl.text().trim()
-            break
+            if (title) break
           }
         }
 
-        // Extract URL/permalink
+        // Extract URL/permalink - Old Reddit uses a.title href
         let url = ''
-        const linkSelectors = [
+        const linkSelectors = isOldReddit ? [
+          'a.title',                    // Old Reddit primary
+          'a.title.may-blank',          // Old Reddit with class
+          'p.title a',                  // Old Reddit alternative
+        ] : [
           'a[data-testid="post-title"]',
           'h3 a',
           'a[slot="title"]',
           'a[href*="/r/"]',
         ]
+        
         for (const selector of linkSelectors) {
           const linkEl = $post.find(selector).first()
           if (linkEl.length > 0) {
-            const href = linkEl.attr('href') || ''
-            if (href.startsWith('http')) {
+            let href = linkEl.attr('href') || ''
+            
+            // Old Reddit sometimes uses relative URLs that need conversion
+            if (href.startsWith('/r/') || href.startsWith('/comments/')) {
+              url = `https://www.reddit.com${href}`
+            } else if (href.startsWith('http')) {
               url = href
             } else if (href.startsWith('/')) {
               url = `https://www.reddit.com${href}`
             } else {
               url = `https://www.reddit.com/r/${subreddit}/${href}`
             }
-            break
+            if (url) break
           }
         }
 
-        // Extract score - try multiple selectors
-        const scoreSelectors = [
+        // Extract score - Old Reddit uses .score.unvoted, Modern Reddit uses different selectors
+        const scoreSelectors = isOldReddit ? [
+          '.score.unvoted',             // Old Reddit primary
+          '.score',                     // Old Reddit fallback
+          '.score.likes',               // Old Reddit with likes
+        ] : [
           '[data-testid="vote-arrows"]',
           'faceplate-number',
           '.score',
@@ -146,8 +169,12 @@ export async function scrapeRedditHTML(
           }
         }
 
-        // Extract selftext/excerpt
-        const textSelectors = [
+        // Extract selftext/excerpt - Old Reddit uses .usertext-body
+        const textSelectors = isOldReddit ? [
+          '.usertext-body',             // Old Reddit primary
+          '.md',                        // Old Reddit markdown content
+          'div.usertext-body p',        // Old Reddit nested
+        ] : [
           'p[data-testid="post-content"]',
           '[slot="text"]',
           '.Post__text',
@@ -162,9 +189,12 @@ export async function scrapeRedditHTML(
           }
         }
 
-        // Extract timestamp/date - Reddit often uses relative time
+        // Extract timestamp/date - Old Reddit uses time tag with title attribute
         let date = new Date().toLocaleDateString() // Default to today if not found
-        const timeSelectors = [
+        const timeSelectors = isOldReddit ? [
+          'time',                       // Old Reddit primary (has title attribute)
+          'time[title]',                // Old Reddit with title
+        ] : [
           'time',
           '[data-testid="post-timestamp"]',
           'faceplate-timeago',
@@ -231,7 +261,8 @@ async function scrapeRedditHTMLFallback(
   query: string,
   limit: number
 ): Promise<RedditPost[]> {
-  const recentUrl = `https://www.reddit.com/r/${subreddit}/new/`
+  // Use old.reddit.com for fallback too - it's the only reliable way to scrape
+  const recentUrl = `https://old.reddit.com/r/${subreddit}/new/`
 
   try {
     const response = await fetch(recentUrl, {
@@ -252,27 +283,39 @@ async function scrapeRedditHTMLFallback(
     const posts: RedditPost[] = []
     const queryLower = query.toLowerCase()
 
-    // Same selectors as main scraper
-    const postSelectors = ['shreddit-post', 'article[data-testid="post-container"]', 'div.Post']
+    // Old Reddit selectors for fallback
+    const postSelectors = [
+      'div.thing[data-subreddit]',  // Old Reddit structure
+      'div.thing',                   // Old Reddit fallback
+    ]
     let $posts: ReturnType<typeof $> | null = null
     for (const selector of postSelectors) {
       $posts = $(selector)
-      if ($posts.length > 0) break
+      if ($posts.length > 0) {
+        console.log(`[Reddit HTML Fallback] Found ${$posts.length} posts using selector: ${selector}`)
+        break
+      }
     }
 
-    if (!$posts) return []
+    if (!$posts || $posts.length === 0) {
+      console.warn(`[Reddit HTML Fallback] No posts found with selectors`)
+      return []
+    }
 
     $posts.slice(0, 50).each((index, element) => {
       try {
         const $post = $(element)
-        const title = $post.find('h3, h3 a, a[data-testid="post-title"]').first().text().trim()
-        const text = $post.find('p').text().trim()
+        // Old Reddit title extraction
+        const title = $post.find('a.title, p.title a').first().text().trim()
+        const text = $post.find('.usertext-body, .md').first().text().trim()
 
         // Filter by query
         if (title.toLowerCase().includes(queryLower) || text.toLowerCase().includes(queryLower)) {
-          const href = $post.find('a[href*="/r/"]').first().attr('href') || ''
+          // Old Reddit URL extraction
+          const href = $post.find('a.title, p.title a').first().attr('href') || ''
           const url = href.startsWith('http') ? href : `https://www.reddit.com${href}`
-          const scoreText = $post.find('[data-testid="vote-arrows"], .score').first().text().trim()
+          // Old Reddit score extraction
+          const scoreText = $post.find('.score.unvoted, .score').first().text().trim().replace(/\D/g, '')
           const score = parseInt(scoreText, 10) || 0
 
           if (title && url) {

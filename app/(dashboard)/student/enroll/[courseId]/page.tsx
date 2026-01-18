@@ -146,6 +146,7 @@ export default function EnrollCoursePage() {
   const [success, setSuccess] = useState(false)
   const [courseFeedback, setCourseFeedback] = useState<CourseFeedback | null>(null)
   const [loadingFeedback, setLoadingFeedback] = useState(false)
+  const [feedbackError, setFeedbackError] = useState<string | null>(null)
 
   // Extract course code from course name
   function getCourseCode(courseName: string): string | null {
@@ -169,6 +170,7 @@ export default function EnrollCoursePage() {
 
       try {
         setLoadingFeedback(true)
+        setFeedbackError(null)
         console.log('[Enroll] Fetching feedback for course code:', courseCode)
         const response = await fetch(`/api/courses/feedback/${encodeURIComponent(courseCode)}`)
         
@@ -182,11 +184,19 @@ export default function EnrollCoursePage() {
           })
           setCourseFeedback(data)
         } else {
-          const errorText = await response.text()
-          console.error('[Enroll] Feedback API error:', response.status, errorText)
+          const errorData = await response.json().catch(() => ({ error: 'Failed to load feedback' }))
+          console.error('[Enroll] Feedback API error:', response.status, errorData)
+          
+          // Check if it's a blocking error
+          if (errorData.blocked || errorData.error?.includes('blocked') || errorData.error?.includes('Blocked')) {
+            setFeedbackError(errorData.error || 'Reddit is currently blocking our requests. Please try again later.')
+          } else {
+            setFeedbackError(errorData.error || 'Failed to load course feedback')
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[Enroll] Error loading feedback:', err)
+        setFeedbackError('Failed to load course feedback. Please try again later.')
       } finally {
         setLoadingFeedback(false)
       }
@@ -399,6 +409,25 @@ export default function EnrollCoursePage() {
             <div className="flex items-center justify-center">
               <LoadingSpinner size="sm" />
               <span className="ml-2 text-sm text-muted-foreground">Loading course feedback...</span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : feedbackError ? (
+        <Card className="mb-6 border-destructive/50">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              <CardTitle className="text-destructive">Reddit Scraping Error</CardTitle>
+            </div>
+            <CardDescription>Unable to load Reddit feedback</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
+              <p className="font-medium mb-1">Error loading Reddit reviews</p>
+              <p>{feedbackError}</p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                You can still view the course information below and enroll. The Reddit feedback feature is temporarily unavailable.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -70,20 +70,39 @@ export async function GET(
 
     const fullCourseName = courseNames[courseCode] || courseCode
 
-    // Use the existing scraping logic by calling the same function
-    const feedback = await scrapeRedditForCourse(courseCode, fullCourseName)
-    
-    // Log what we're returning (for debugging on Vercel)
-    console.log(`[Feedback API] Returning feedback for ${courseCode}:`, {
-      hasPositiveFeedback: feedback.positiveFeedback?.length || 0,
-      hasNegativeFeedback: feedback.negativeFeedback?.length || 0,
-      hasRedditPosts: feedback.redditPosts?.length || 0,
-      redditPostsDetails: feedback.redditPosts?.map(p => ({ title: p.title, url: p.url })) || []
-    })
-    
-    return NextResponse.json(feedback)
+    try {
+      // Use the existing scraping logic by calling the same function
+      const feedback = await scrapeRedditForCourse(courseCode, fullCourseName)
+      
+      // Log what we're returning (for debugging on Vercel)
+      console.log(`[Feedback API] Returning feedback for ${courseCode}:`, {
+        hasPositiveFeedback: feedback.positiveFeedback?.length || 0,
+        hasNegativeFeedback: feedback.negativeFeedback?.length || 0,
+        hasRedditPosts: feedback.redditPosts?.length || 0,
+        redditPostsDetails: feedback.redditPosts?.map(p => ({ title: p.title, url: p.url })) || []
+      })
+      
+      return NextResponse.json(feedback)
+    } catch (scrapeError: any) {
+      console.error('[Feedback API] Error fetching course feedback:', scrapeError.message || scrapeError)
+      
+      // Check if it's a Reddit blocking error
+      const errorMessage = scrapeError.message || String(scrapeError) || ''
+      if (errorMessage.includes('blocked') || errorMessage.includes('Blocked') || errorMessage.includes('register')) {
+        return NextResponse.json(
+          { 
+            error: 'Reddit is currently blocking our requests. This may be due to rate limiting or bot detection. Please try again later.',
+            blocked: true,
+          },
+          { status: 503 } // Service Unavailable
+        )
+      }
+      
+      // Re-throw non-blocking errors to outer catch
+      throw scrapeError
+    }
   } catch (error: any) {
-    console.error('[Feedback API] Error fetching course feedback:', error.message || error)
+    console.error('[Feedback API] Outer error:', error.message || error)
     return createErrorResponse(error, 'Failed to fetch course feedback')
   }
 }
@@ -235,7 +254,14 @@ async function scrapeRedditForCourse(
     return processRedditPosts(uniquePosts, courseCode, fullCourseName)
   } catch (error: any) {
     console.error('[Reddit HTML] Critical error scraping:', error.message || error)
-    // Even on error, try to return something useful with at least basic stats
+    
+    // Check if it's a blocking error
+    const errorMessage = error.message || ''
+    if (errorMessage.includes('blocked') || errorMessage.includes('Blocked') || errorMessage.includes('register')) {
+      throw error // Re-throw blocking errors so API route can return error response
+    }
+    
+    // For other errors, return default feedback
     const defaultFeedback = getDefaultFeedback(courseCode, fullCourseName)
     console.warn('[Reddit HTML] Returning default feedback due to error')
     return defaultFeedback

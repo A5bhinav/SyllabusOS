@@ -2,5 +2,6 @@
 /// <reference types="next/image-types/global" />
 import "./.next/types/routes.d.ts";
 
+//What the hell is that name?
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.

@@ -34,13 +34,22 @@ export async function scrapeRedditHTML(
   const searchUrl = `https://old.reddit.com/r/${subreddit}/search?q=${encodeURIComponent(query)}&restrict_sr=1&sort=${sort}&t=all`
 
   try {
-    // Fetch HTML with proper headers to mimic a browser
+    // Fetch HTML with proper headers to mimic a real browser
+    // Reddit blocks requests without proper browser headers
     const response = await fetch(searchUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0',
       },
       cache: 'no-store',
     })
@@ -50,6 +59,17 @@ export async function scrapeRedditHTML(
     }
 
     const html = await response.text()
+    
+    // Debug: Log HTML length to see if we got content
+    console.log(`[Reddit HTML] Fetched HTML length: ${html.length} characters`)
+    console.log(`[Reddit HTML] URL: ${searchUrl}`)
+    
+    // Check if Reddit blocked us
+    if (html.includes('Blocked') || html.includes('please register') || html.toLowerCase().includes('access denied')) {
+      console.error(`[Reddit HTML] Reddit blocked the request. HTML preview: ${html.substring(0, 500)}`)
+      throw new Error('Reddit blocked the request. This may be due to rate limiting or bot detection.')
+    }
+    
     const $ = cheerio.load(html)
 
     const posts: RedditPost[] = []
@@ -65,16 +85,22 @@ export async function scrapeRedditHTML(
     ]
 
     let $posts: ReturnType<typeof $> | null = null
+    let usedSelector = ''
     for (const selector of postSelectors) {
       $posts = $(selector)
       if ($posts.length > 0) {
+        usedSelector = selector
         console.log(`[Reddit HTML] Found ${$posts.length} posts using selector: ${selector}`)
         break
       }
     }
 
     if (!$posts || $posts.length === 0) {
-      console.warn(`[Reddit HTML] No posts found with any selector. Trying fallback method...`)
+      // Debug: Check what HTML structure we actually got
+      console.warn(`[Reddit HTML] No posts found with any selector. Checking HTML structure...`)
+      const bodyText = $('body').text().substring(0, 500)
+      console.log(`[Reddit HTML] Body preview: ${bodyText}`)
+      console.log(`[Reddit HTML] Trying fallback method...`)
       return await scrapeRedditHTMLFallback(subreddit, query, limit)
     }
 
@@ -239,6 +265,8 @@ export async function scrapeRedditHTML(
             selftext,
             permalink,
           })
+        } else {
+          console.warn(`[Reddit HTML] Skipping post ${index}: missing title (${!!title}) or url (${!!url})`)
         }
       } catch (err: any) {
         console.warn(`[Reddit HTML] Error parsing post ${index}:`, err.message)
@@ -268,7 +296,16 @@ async function scrapeRedditHTMLFallback(
     const response = await fetch(recentUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
       },
       cache: 'no-store',
     })

@@ -196,6 +196,8 @@ async function scrapeRedditForCourse(
       courseCode.match(/^([A-Z]+)/)?.[1] + ' ' + courseCode.match(/(\d+)/)?.[1],
     ].filter(Boolean) as string[]
 
+    console.log(`[Reddit HTML] Search terms:`, searchTerms)
+
     // Scrape HTML directly - NO API AUTHENTICATION NEEDED!
     const htmlPosts = await scrapeRedditHTMLMultiple(subreddit, searchTerms, {
       limit: 10,
@@ -203,6 +205,12 @@ async function scrapeRedditForCourse(
     })
 
     console.log(`[Reddit HTML] Found ${htmlPosts.length} posts via HTML scraping`)
+    
+    if (htmlPosts.length === 0) {
+      console.warn(`[Reddit HTML] No posts found - checking if scraper is working correctly`)
+    } else {
+      console.log(`[Reddit HTML] Sample post titles:`, htmlPosts.slice(0, 3).map(p => p.title))
+    }
 
     // Convert HTML posts to the format expected by processRedditPosts
     const apiFormatPosts = convertHTMLPostsToAPIFormat(htmlPosts)

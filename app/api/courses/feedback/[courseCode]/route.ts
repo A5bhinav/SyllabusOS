@@ -139,34 +139,50 @@ function normalizeCourseCode(code: string): string | null {
   return null
 }
 
-// Simplified Reddit scraping - reuse the core logic from [courseId]/feedback
+/**
+ * Reddit Scraper using JSON API (No authentication required!)
+ * Based on Python Reddit scraper - uses Reddit's public JSON endpoints
+ * by appending .json to any Reddit URL. No API keys needed!
+ */
 async function scrapeRedditForCourse(
   courseCode: string,
   fullCourseName: string
 ): Promise<CourseFeedback> {
   const subreddit = 'UCSC'
+  const baseUrl = 'https://www.reddit.com'
   let allPosts: any[] = []
+  
+  // User-Agent: Simple identifier like Python script uses
+  // Reddit's JSON API works without auth, but needs a User-Agent
+  const userAgent = 'SyllabusOS/1.0 (Node.js; +https://syllabusos.vercel.app)'
   
   try {
     const searchTerms = [courseCode, courseCode.replace(/\s+/g, '')]
     
-    // Try Reddit's search endpoint first
+    // Method 1: Try Reddit's search endpoint using .json (no API key needed!)
     for (const term of searchTerms) {
       try {
-        // Try Reddit search API - use .json suffix which is more reliable
-        const searchUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(term)}&restrict_sr=1&limit=10&sort=relevance&t=all`
+        // Reddit JSON API: append .json to any Reddit URL - no auth required!
+        const searchUrl = `${baseUrl}/r/${subreddit}/search.json`
+        const params = new URLSearchParams({
+          q: term,
+          restrict_sr: '1',
+          limit: '10',
+          sort: 'relevance',
+          t: 'all'
+        })
+        const fullUrl = `${searchUrl}?${params.toString()}`
         
         // Create AbortController for timeout on Vercel
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout per request
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
         
-        const response = await fetch(searchUrl, {
+        const response = await fetch(fullUrl, {
           headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json',
-            'Accept-Language': 'en-US,en;q=0.9'
+            'User-Agent': userAgent,
+            'Accept': 'application/json'
           },
-          cache: 'no-store',
+          cache: 'no-store', // Don't cache on Vercel
           signal: controller.signal
         })
         
@@ -174,22 +190,24 @@ async function scrapeRedditForCourse(
         
         if (response.ok) {
           const data = await response.json()
-          const posts = data.data?.children || []
-          if (posts && posts.length > 0) {
-            allPosts = [...allPosts, ...posts]
-            console.log(`[Reddit] Found ${posts.length} posts for "${term}"`)
-          } else {
-            console.warn(`[Reddit] No posts found for "${term}"`)
+          
+          // Reddit JSON structure: data.data.children contains posts
+          if (data && data.data && data.data.children) {
+            const posts = data.data.children
+            if (posts && posts.length > 0) {
+              allPosts = [...allPosts, ...posts]
+              console.log(`[Reddit JSON API] Found ${posts.length} posts for "${term}"`)
+            }
           }
         } else {
-          console.warn(`[Reddit] Response not OK for "${term}": ${response.status} ${response.statusText}`)
+          console.warn(`[Reddit] Search response not OK for "${term}": ${response.status} ${response.statusText}`)
         }
         
-        // Small delay between requests to avoid rate limiting
+        // Small delay between requests to avoid rate limiting (like Python script)
         await new Promise(resolve => setTimeout(resolve, 500))
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          console.error(`[Reddit] Request timeout for "${term}"`)
+          console.error(`[Reddit] Request timeout for "${term}" (10s timeout)`)
         } else {
           console.error(`[Reddit] Error searching "${term}":`, err.message || err)
         }
@@ -197,17 +215,19 @@ async function scrapeRedditForCourse(
       }
     }
     
-    // If search didn't work, try getting recent posts from the subreddit and filter client-side
+    // Method 2: Fallback - Get recent posts from subreddit and filter client-side
+    // This matches the Python script's approach when search fails
     if (allPosts.length === 0) {
       try {
-        console.log(`[Reddit] Search failed, trying recent posts fallback`)
-        const recentUrl = `https://www.reddit.com/r/${subreddit}/new.json?limit=25`
+        console.log(`[Reddit] Search returned no results, trying recent posts fallback`)
+        // Reddit JSON API: /r/UCSC/new.json - no auth needed!
+        const recentUrl = `${baseUrl}/r/${subreddit}/new.json?limit=25`
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 8000)
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
         
         const response = await fetch(recentUrl, {
           headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent': userAgent,
             'Accept': 'application/json'
           },
           cache: 'no-store',
@@ -218,36 +238,50 @@ async function scrapeRedditForCourse(
         
         if (response.ok) {
           const data = await response.json()
-          const posts = data.data?.children || []
-          // Filter posts that mention the course code
-          const courseCodeLower = courseCode.toLowerCase()
-          const filtered = posts.filter((p: any) => {
-            const title = (p.data?.title || '').toLowerCase()
-            const text = (p.data?.selftext || '').toLowerCase()
-            return title.includes(courseCodeLower) || text.includes(courseCodeLower)
-          })
           
-          if (filtered.length > 0) {
-            allPosts = filtered
-            console.log(`[Reddit] Found ${filtered.length} posts via fallback method`)
+          if (data && data.data && data.data.children) {
+            const posts = data.data.children
+            // Filter posts that mention the course code (client-side filtering)
+            const courseCodeLower = courseCode.toLowerCase()
+            const filtered = posts.filter((p: any) => {
+              const postData = p.data || {}
+              const title = (postData.title || '').toLowerCase()
+              const text = (postData.selftext || '').toLowerCase()
+              return title.includes(courseCodeLower) || text.includes(courseCodeLower)
+            })
+            
+            if (filtered.length > 0) {
+              allPosts = filtered
+              console.log(`[Reddit JSON API] Found ${filtered.length} posts via fallback method`)
+            }
           }
+        } else {
+          console.warn(`[Reddit] Fallback response not OK: ${response.status} ${response.statusText}`)
         }
       } catch (err: any) {
-        console.error(`[Reddit] Fallback method also failed:`, err.message || err)
+        if (err.name === 'AbortError') {
+          console.error(`[Reddit] Fallback request timeout (10s)`)
+        } else {
+          console.error(`[Reddit] Fallback method failed:`, err.message || err)
+        }
       }
     }
 
-    // Remove duplicates
+    // Remove duplicates (like Python script's unique post handling)
     const uniquePosts = Array.from(
-      new Map(allPosts.map((p: any) => [p.data?.permalink || p.data?.id, p])).values()
+      new Map(allPosts.map((p: any) => {
+        const permalink = p.data?.permalink || ''
+        const postId = p.data?.id || ''
+        return [permalink || postId, p]
+      })).values()
     ).filter((p: any) => p && p.data)
 
-    console.log(`[Reddit] Total unique posts found: ${uniquePosts.length}`)
+    console.log(`[Reddit JSON API] Total unique posts found: ${uniquePosts.length}`)
 
     if (uniquePosts.length === 0) {
-      console.warn(`[Reddit] No posts found for ${courseCode} - Reddit API may be blocked on Vercel`)
-      // Log environment for debugging
+      console.warn(`[Reddit] No posts found for ${courseCode}`)
       console.log(`[Reddit] Environment: ${process.env.VERCEL ? 'Vercel' : 'Local'}`)
+      console.log(`[Reddit] Using JSON API (no authentication required) - check User-Agent if blocked`)
     }
 
     // Always process posts, even if empty - processRedditPosts handles empty arrays

@@ -58,11 +58,23 @@ const VEO_MODEL = process.env.VEO_MODEL || 'veo-3.1'
 const VEO_API_KEY = process.env.GOOGLE_VEO_API_KEY || process.env.GOOGLE_GENAI_API_KEY
 const MAX_VIDEO_DURATION = parseInt(process.env.VIDEO_MAX_DURATION || '30', 10)
 
+// Check if Veo API is actually available
+// NOTE: Veo API integration is NOT YET IMPLEMENTED, so this will always be false
+// Once implemented, uncomment the line below and remove the false assignment
+// const VEO_API_AVAILABLE = !!VEO_API_KEY && !MOCK_MODE && VIDEO_GENERATION_ENABLED
+const VEO_API_AVAILABLE = false // Veo API integration not yet implemented
+
 /**
- * Check if video generation is enabled
+ * Check if video generation is enabled and available
+ * Note: Even if enabled, Veo API integration may not be implemented
  */
 export function isVideoGenerationEnabled(): boolean {
-  return !MOCK_MODE && VIDEO_GENERATION_ENABLED && !!VEO_API_KEY
+  // Video generation is only enabled if:
+  // 1. Not in mock mode
+  // 2. VIDEO_GENERATION_ENABLED is not false
+  // 3. VEO_API_KEY is provided
+  // 4. Veo API is actually implemented (currently returns false as it's not implemented)
+  return VEO_API_AVAILABLE
 }
 
 /**
@@ -177,40 +189,12 @@ async function generateVeoClip(
     return Buffer.from('')
   }
 
-  // TODO: Implement actual Veo API call
-  // Veo API would be called here using Google AI Studio or Vertex AI
-  // For now, this is a placeholder structure
-
-  const veoPrompt = `
-${prompt}
-
-Style: ${style.tone || 'professional'}, academic setting, warm lighting
-Aspect Ratio: ${style.aspectRatio || '16:9'}
-Duration: ${style.duration || 5} seconds
-Quality: High definition, smooth motion
-`
-
-  // Example API call structure (would need actual Veo API implementation):
-  /*
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/veo-3.1:generateVideo', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${VEO_API_KEY}`,
-    },
-    body: JSON.stringify({
-      prompt: veoPrompt,
-      aspectRatio: style.aspectRatio || '16:9',
-      duration: style.duration || 5,
-    }),
-  })
-
-  const data = await response.json()
-  // Download video from data.videoUrl or data.videoBuffer
-  // Return as Buffer
-  */
-
-  throw new Error('Veo API integration not yet implemented. Enable MOCK_MODE for development.')
+  // Veo API integration is not yet implemented
+  // This is a placeholder - actual implementation would call Google's Veo API
+  // For now, if we reach here and don't have MOCK_MODE, we should fail gracefully
+  
+  console.warn('[Video Generator] Veo API integration not yet implemented. Video generation is currently only available in MOCK_MODE.')
+  throw new Error('Veo API integration not yet implemented. Set MOCK_MODE=true or VIDEO_GENERATION_ENABLED=false to skip video generation.')
 }
 
 /**
@@ -308,21 +292,26 @@ export async function generateVideoFromResponse(
   context: EscalationContext,
   style: VideoStyle = {}
 ): Promise<Buffer> {
-  if (MOCK_MODE || !VIDEO_GENERATION_ENABLED) {
-    console.log('[MOCK MODE] Video generation skipped - returning empty buffer')
-    // In mock mode, return empty buffer
-    // The worker will handle setting a placeholder URL
+  // Early exit if video generation is not available
+  if (MOCK_MODE || !VIDEO_GENERATION_ENABLED || !VEO_API_AVAILABLE) {
+    console.log('[Video Generator] Video generation disabled or not available - returning empty buffer')
+    // In mock/disabled mode, return empty buffer
+    // The worker will handle setting a placeholder URL or skipping
     return Buffer.from('')
   }
 
-  // Step 1: Generate storyboard
+  // Veo API is not yet implemented - this will fail if we reach here
+  // The check above should prevent this, but adding explicit check
+  console.warn('[Video Generator] Veo API not implemented - video generation will fail')
+  
+  // Step 1: Generate storyboard (this part works)
   const storyboard = await generateVideoPrompt(responseText, studentName, context)
 
-  // Step 2: Generate video clips
+  // Step 2: Generate video clips (this will fail - Veo API not implemented)
   const clips = await generateVideoClips(storyboard, style)
 
   if (clips.length === 0) {
-    throw new Error('No video clips generated')
+    throw new Error('No video clips generated - Veo API integration not implemented')
   }
 
   // Step 3: Stitch clips together

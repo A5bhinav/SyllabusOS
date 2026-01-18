@@ -158,7 +158,15 @@ async function scrapeRedditForCourse(
   const userAgent = 'SyllabusOS/1.0 (Node.js; +https://syllabusos.vercel.app)'
   
   try {
-    const searchTerms = [courseCode, courseCode.replace(/\s+/g, '')]
+    // Try multiple search variations to catch more posts
+    const searchTerms = [
+      courseCode,                                    // "CSE 101"
+      courseCode.replace(/\s+/g, ''),               // "CSE101"
+      courseCode.replace(/\s+/g, ' '),              // Normalized spacing
+      courseCode.match(/^([A-Z]+)/)?.[1] + ' ' + courseCode.match(/(\d+)/)?.[1], // Ensure format
+    ].filter(Boolean) as string[]
+    
+    console.log(`[Reddit] Searching for course "${courseCode}" with terms:`, searchTerms)
     
     // Method 1: Try Reddit's search endpoint using .json (no API key needed!)
     for (const term of searchTerms) {
@@ -194,14 +202,31 @@ async function scrapeRedditForCourse(
           
           // Reddit JSON structure: data.data.children contains posts
           if (data && data.data && data.data.children) {
-            const posts = data.data.children
+            const posts = data.data.children.filter((child: any) => {
+              // Filter out deleted/removed posts
+              const postData = child.data || child
+              return postData && !postData.removed_by_category && postData.title
+            })
+            
             if (posts && posts.length > 0) {
               allPosts = [...allPosts, ...posts]
-              console.log(`[Reddit JSON API] Found ${posts.length} posts for "${term}"`)
+              console.log(`[Reddit JSON API] Found ${posts.length} valid posts for "${term}"`)
+            } else {
+              console.log(`[Reddit JSON API] No valid posts found for "${term}" (may have been removed/deleted)`)
             }
+          } else {
+            console.warn(`[Reddit] Invalid response structure for "${term}" - data.data.children not found`)
           }
         } else {
-          console.warn(`[Reddit] Search response not OK for "${term}": ${response.status} ${response.statusText}`)
+          const statusText = response.statusText
+          console.warn(`[Reddit] Search response not OK for "${term}": ${response.status} ${statusText}`)
+          // Log response body for debugging (first 200 chars)
+          try {
+            const text = await response.text()
+            console.warn(`[Reddit] Response body preview:`, text.substring(0, 200))
+          } catch {
+            // Ignore error reading response
+          }
         }
         
         // Small delay between requests to avoid rate limiting (like Python script)
@@ -337,14 +362,22 @@ function processRedditPosts(
     difficulty = 'Easy'
   }
 
-  // Format Reddit posts
-  const redditPosts = posts.slice(0, 5).map((post: any) => ({
-    title: post.data?.title || '',
-    url: `https://www.reddit.com${post.data?.permalink || ''}`,
-    score: post.data?.score || 0,
-    excerpt: (post.data?.selftext || post.data?.title || '').substring(0, 200),
-    date: new Date((post.data?.created_utc || 0) * 1000).toLocaleDateString()
-  })).filter(p => p.url && p.url.includes('reddit.com'))
+  // Format Reddit posts - ensure permalink starts with /r/
+  const redditPosts = posts.slice(0, 5).map((post: any) => {
+    const postData = post.data || post
+    const permalink = postData.permalink || ''
+    const url = permalink.startsWith('http') 
+      ? permalink 
+      : `https://www.reddit.com${permalink.startsWith('/') ? permalink : '/' + permalink}`
+    
+    return {
+      title: postData.title || '',
+      url: url,
+      score: postData.score || 0,
+      excerpt: (postData.selftext || postData.title || '').substring(0, 200),
+      date: new Date((postData.created_utc || 0) * 1000).toLocaleDateString()
+    }
+  }).filter(p => p.title && p.url && p.url.includes('reddit.com'))
 
   // Default grade distributions
   const gradeDistributions: Record<string, { A: number, B: number, C: number, D: number, F: number }> = {

@@ -150,17 +150,64 @@ async function scrapeRedditForCourse(
   try {
     const searchTerms = [courseCode, courseCode.replace(/\s+/g, '')]
     
+    // Try Reddit's search endpoint first
     for (const term of searchTerms) {
       try {
+        // Try Reddit search API - use .json suffix which is more reliable
         const searchUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(term)}&restrict_sr=1&limit=10&sort=relevance&t=all`
         
         // Create AbortController for timeout on Vercel
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout per request
+        const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout per request
         
         const response = await fetch(searchUrl, {
           headers: { 
-            'User-Agent': 'Mozilla/5.0 (compatible; SyllabusOS/1.0; +https://syllabusos.vercel.app)',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9'
+          },
+          cache: 'no-store',
+          signal: controller.signal
+        })
+        
+        clearTimeout(timeoutId)
+        
+        if (response.ok) {
+          const data = await response.json()
+          const posts = data.data?.children || []
+          if (posts && posts.length > 0) {
+            allPosts = [...allPosts, ...posts]
+            console.log(`[Reddit] Found ${posts.length} posts for "${term}"`)
+          } else {
+            console.warn(`[Reddit] No posts found for "${term}"`)
+          }
+        } else {
+          console.warn(`[Reddit] Response not OK for "${term}": ${response.status} ${response.statusText}`)
+        }
+        
+        // Small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500))
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.error(`[Reddit] Request timeout for "${term}"`)
+        } else {
+          console.error(`[Reddit] Error searching "${term}":`, err.message || err)
+        }
+        // Continue to next search term even if one fails
+      }
+    }
+    
+    // If search didn't work, try getting recent posts from the subreddit and filter client-side
+    if (allPosts.length === 0) {
+      try {
+        console.log(`[Reddit] Search failed, trying recent posts fallback`)
+        const recentUrl = `https://www.reddit.com/r/${subreddit}/new.json?limit=25`
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 8000)
+        
+        const response = await fetch(recentUrl, {
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json'
           },
           cache: 'no-store',
@@ -172,23 +219,21 @@ async function scrapeRedditForCourse(
         if (response.ok) {
           const data = await response.json()
           const posts = data.data?.children || []
-          if (posts.length > 0) {
-            allPosts = [...allPosts, ...posts]
-            console.log(`[Reddit] Found ${posts.length} posts for "${term}"`)
+          // Filter posts that mention the course code
+          const courseCodeLower = courseCode.toLowerCase()
+          const filtered = posts.filter((p: any) => {
+            const title = (p.data?.title || '').toLowerCase()
+            const text = (p.data?.selftext || '').toLowerCase()
+            return title.includes(courseCodeLower) || text.includes(courseCodeLower)
+          })
+          
+          if (filtered.length > 0) {
+            allPosts = filtered
+            console.log(`[Reddit] Found ${filtered.length} posts via fallback method`)
           }
-        } else {
-          console.warn(`[Reddit] Response not OK for "${term}": ${response.status} ${response.statusText}`)
         }
-        
-        // Small delay between requests
-        await new Promise(resolve => setTimeout(resolve, 500))
       } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.error(`[Reddit] Request timeout for "${term}"`)
-        } else {
-          console.error(`[Reddit] Error searching "${term}":`, err.message || err)
-        }
-        // Continue to next search term even if one fails
+        console.error(`[Reddit] Fallback method also failed:`, err.message || err)
       }
     }
 
@@ -198,6 +243,12 @@ async function scrapeRedditForCourse(
     ).filter((p: any) => p && p.data)
 
     console.log(`[Reddit] Total unique posts found: ${uniquePosts.length}`)
+
+    if (uniquePosts.length === 0) {
+      console.warn(`[Reddit] No posts found for ${courseCode} - Reddit API may be blocked on Vercel`)
+      // Log environment for debugging
+      console.log(`[Reddit] Environment: ${process.env.VERCEL ? 'Vercel' : 'Local'}`)
+    }
 
     // Always process posts, even if empty - processRedditPosts handles empty arrays
     return processRedditPosts(uniquePosts, courseCode, fullCourseName)

@@ -25,6 +25,10 @@
     "app/api/courses/feedback/[courseCode]/route.ts": {
       "maxDuration": 30,
       "memory": 512
+    },
+    "app/api/video/poll/route.ts": {
+      "maxDuration": 60,
+      "memory": 512
     }
   },
   "regions": ["iad1"]

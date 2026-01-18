@@ -187,7 +187,7 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-3xl font-bold">Create your account</CardTitle>
           <CardDescription className="text-base">
-            Get started with SyllabusOS in seconds
+            Get started with ProfAI in seconds
         </CardDescription>
       </CardHeader>
         <CardContent className="space-y-5">

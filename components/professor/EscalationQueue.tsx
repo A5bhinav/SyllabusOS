@@ -67,6 +67,13 @@ export function EscalationQueue() {
   }, [])
 
   useEffect(() => {
+    // Log when component mounts to verify console is working
+    console.log('%c📹 Video Generation System Ready', 'color: #3b82f6; font-weight: bold; font-size: 12px;', {
+      message: 'Video generation logs will appear here when you submit responses to escalations',
+      instructions: 'Submit a response to an escalation to see video generation progress',
+      timestamp: new Date().toISOString(),
+    })
+    
     loadEscalations()
   }, [loadEscalations])
 
@@ -123,12 +130,22 @@ export function EscalationQueue() {
   const handleSubmitResponse = useCallback(async (id: string) => {
     const response = responseTexts[id]?.trim()
     if (!response) {
+      console.warn('[EscalationQueue] Cannot submit empty response')
       return
     }
 
     try {
+      console.log('%c📤 Submitting Response', 'color: #3b82f6; font-weight: bold; font-size: 14px;', {
+        escalationId: id,
+        responseLength: response.length,
+        timestamp: new Date().toISOString(),
+      })
       setSubmittingResponse(id)
       await updateEscalationResponse(id, response, 'resolved')
+      console.log('%c✅ Response Submitted Successfully', 'color: #10b981; font-weight: bold;', {
+        escalationId: id,
+        timestamp: new Date().toISOString(),
+      })
       // Clear the response text and suggestion
       setResponseTexts(prev => {
         const next = { ...prev }
@@ -147,6 +164,13 @@ export function EscalationQueue() {
       })
       
       // Video generation is triggered automatically by the API
+      console.log('%c🎬 Video Generation Started', 'color: #10b981; font-weight: bold; font-size: 14px;', {
+        escalationId: id,
+        responseLength: response.length,
+        timestamp: new Date().toISOString(),
+      })
+      console.log('%c📊 Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0.0% Job created, starting generation...', 'color: #6b7280;')
+      
       // Start polling for video status
       setVideoStatuses(prev => ({
         ...prev,
@@ -170,14 +194,67 @@ export function EscalationQueue() {
   // Poll video status for escalations being processed
   useEffect(() => {
     const pollingIntervals: Record<string, NodeJS.Timeout> = {}
+    const pollingProgress: Record<string, { pollCount: number; startTime: number }> = {}
     
     Object.keys(pollingVideo).forEach(escalationId => {
       if (pollingVideo[escalationId]) {
+        // Initialize progress tracking for this escalation
+        if (!pollingProgress[escalationId]) {
+          pollingProgress[escalationId] = { pollCount: 0, startTime: Date.now() }
+        }
+        
         const pollStatus = async () => {
+          const progress = pollingProgress[escalationId]
+          if (!progress) {
+            console.warn(`[Video Poll] No progress tracking found for escalation ${escalationId}`)
+            return
+          }
+          
+          progress.pollCount++
+          const timeElapsed = Date.now() - progress.startTime
+          const estimatedTotalTime = 6 * 60 * 1000 // 6 minutes
+          const estimatedProgress = Math.min((timeElapsed / estimatedTotalTime) * 95, 95)
+          
           try {
+            // If status is processing or pending, trigger actual Veo API polling
+            if (progress.pollCount % 5 === 0) { // Every 5th poll (every 10 seconds), trigger worker polling
+              try {
+                await fetch('/api/video/poll', { method: 'POST' })
+                console.log(`[Video Poll] Triggered worker polling for escalation ${escalationId.substring(0, 8)}...`)
+              } catch (pollErr) {
+                // Non-critical - just log
+                console.warn(`[Video Poll] Failed to trigger worker poll (non-critical):`, pollErr)
+              }
+            }
+            
             const res = await fetch(`/api/escalations/${escalationId}/video-status`)
             if (res.ok) {
               const data = await res.json()
+              
+              // Log every poll to show it's working
+              console.log(`[Video Poll] Escalation ${escalationId.substring(0, 8)}... | Status: ${data.status} | Poll #${progress.pollCount}`)
+              
+              // Render progress bar in browser console
+              const progressPercent = data.status === 'completed' ? 100 : data.status === 'failed' ? 0 : estimatedProgress
+              const filled = Math.round((progressPercent / 100) * 30)
+              const empty = 30 - filled
+              const bar = '█'.repeat(filled) + '░'.repeat(empty)
+              const statusEmoji = data.status === 'completed' ? '✅' : data.status === 'failed' ? '❌' : '⏳'
+              const statusLabel = data.status === 'completed' ? 'Completed!' : 
+                                  data.status === 'failed' ? 'Failed' :
+                                  data.status === 'processing' ? 'Generating video...' : 'Queued...'
+              
+              const minutes = Math.floor(timeElapsed / 60000)
+              const seconds = Math.floor((timeElapsed % 60000) / 1000)
+              const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+              
+              console.log(`%c${statusEmoji} [${bar}] ${progressPercent.toFixed(1)}% ${statusLabel}`, 
+                data.status === 'completed' ? 'color: #10b981; font-weight: bold;' : 
+                data.status === 'failed' ? 'color: #ef4444; font-weight: bold;' : 
+                'color: #f59e0b;',
+                `| Poll #${progress.pollCount} | Time: ${timeStr} | Est: ~6min`
+              )
+              
               setVideoStatuses(prev => ({
                 ...prev,
                 [escalationId]: data,
@@ -185,6 +262,15 @@ export function EscalationQueue() {
               
               // Stop polling if completed or failed
               if (data.status === 'completed' || data.status === 'failed') {
+                if (data.status === 'completed') {
+                  console.log(`%c✅ Video generation complete! Total time: ${timeStr}`, 'color: #10b981; font-weight: bold; font-size: 14px;')
+                } else {
+                  console.log(`%c❌ Video generation failed after ${timeStr}`, 'color: #ef4444; font-weight: bold;')
+                }
+                
+                // Clean up progress tracking
+                delete pollingProgress[escalationId]
+                
                 setPollingVideo(prev => {
                   const next = { ...prev }
                   delete next[escalationId]
@@ -197,7 +283,7 @@ export function EscalationQueue() {
               }
             }
           } catch (err) {
-            console.error(`Failed to poll video status for ${escalationId}:`, err)
+            console.error(`%c❌ Failed to poll video status for ${escalationId}:`, 'color: #ef4444;', err)
           }
         }
         

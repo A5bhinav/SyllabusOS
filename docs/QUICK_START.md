@@ -1,4 +1,4 @@
-# Quick Start Guide - SyllabusOS
+# Quick Start Guide - ProfAI
 
 ## Running the Development Server
 

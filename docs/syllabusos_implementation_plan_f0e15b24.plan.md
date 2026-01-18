@@ -1,5 +1,5 @@
 ---
-name: SyllabusOS Implementation Plan
+name: ProfAI Implementation Plan
 overview: Build an AI Professor-in-a-Box system with Next.js, Supabase, and multi-agent routing for course management, student triage, and professor oversight.
 todos:
   - id: setup-project
@@ -67,7 +67,7 @@ todos:
       - demo-mode
 ---
 
-# SyllabusOS Implementation Plan
+# ProfAI Implementation Plan
 
 ## Architecture Overview
 
@@ -82,7 +82,7 @@ The system will be built as a Next.js application (App Router) with:
 ## Project Structure
 
 ```javascript
-SyllabusOS/
+ProfAI/
 ├── app/                          # Next.js App Router
 │   ├── (auth)/                   # Auth routes (login/signup)
 │   ├── (dashboard)/

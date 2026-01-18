@@ -25,7 +25,7 @@ export async function fetchWithRetry(
 
   // Ensure proper User-Agent for Reddit (required by Reddit API)
   const defaultUserAgent = process.env.REDDIT_USER_AGENT || 
-    'SyllabusOS/1.0 (by /u/yourusername)'
+    'ProfAI/1.0 (by /u/yourusername)'
 
   const fetchHeaders = {
     'User-Agent': defaultUserAgent,

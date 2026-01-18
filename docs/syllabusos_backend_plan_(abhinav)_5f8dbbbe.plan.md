@@ -1,6 +1,6 @@
 ---
-name: SyllabusOS Backend Plan (Abhinav)
-overview: "Backend implementation plan for SyllabusOS: database schema, RAG system, multi-agent router, API endpoints, and Sunday Night Conductor logic."
+name: ProfAI Backend Plan (Abhinav)
+overview: "Backend implementation plan for ProfAI: database schema, RAG system, multi-agent router, API endpoints, and Sunday Night Conductor logic."
 todos:
   - id: db-setup
     content: Create Supabase project, set up pgvector extension, and create initial schema migration with all tables (profiles, courses, course_content, schedules, escalations, announcements, chat_logs).
@@ -96,7 +96,7 @@ todos:
       - demo-mode-backend
 ---
 
-# SyllabusOS Backend Plan (Abhinav)
+# ProfAI Backend Plan (Abhinav)
 
 ## Overview
 
@@ -105,7 +105,7 @@ This plan covers all backend infrastructure, logic, and API endpoints. The front
 ## Project Structure (Backend Focus)
 
 ```javascript
-SyllabusOS/
+ProfAI/
 ├── app/api/                      # API Routes (all backend)
 │   ├── chat/route.ts             # Chat endpoint
 │   ├── upload/route.ts           # File upload handler

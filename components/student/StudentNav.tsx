@@ -228,7 +228,7 @@ export function StudentNav() {
           {/* Logo/Brand */}
           <Link href="/student" className="flex items-center space-x-2">
             <BookOpen className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">SyllabusOS</span>
+            <span className="text-xl font-bold">ProfAI</span>
           </Link>
 
           {/* Desktop Navigation */}

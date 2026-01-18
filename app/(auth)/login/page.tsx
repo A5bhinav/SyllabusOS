@@ -105,7 +105,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-3xl font-bold">Welcome back</CardTitle>
           <CardDescription className="text-base">
-            Sign in to your SyllabusOS account
+            Sign in to your ProfAI account
         </CardDescription>
       </CardHeader>
         <CardContent className="space-y-5">

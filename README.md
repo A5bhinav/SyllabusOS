@@ -1,10 +1,10 @@
-# SyllabusOS - AI Professor-in-a-Box
+# ProfAI - AI Professor-in-a-Box
 
 An intelligent course management system that automates syllabus operations, weekly pacing, and student triage using AI-powered multi-agent routing. Think of it as a "TA in a box" that handles routine course questions while intelligently escalating complex issues to the professor.
 
 ## 🎯 Project Overview
 
-SyllabusOS is designed to manage course operations rather than just teaching content. It acts as a smart assistant that:
+ProfAI is designed to manage course operations rather than just teaching content. It acts as a smart assistant that:
 
 - **Answers student questions** about course policies, concepts, and schedules
 - **Automatically triages** queries to determine if they need professor attention
@@ -258,7 +258,7 @@ Set `DEMO_MODE=true` and `DEMO_WEEK=4` to:
 ## 📁 Project Structure
 
 ```
-SyllabusOS/
+ProfAI/
 ├── app/                      # Next.js App Router
 │   ├── api/                  # API Routes
 │   │   ├── chat/            # Chat endpoint

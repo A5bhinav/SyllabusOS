@@ -3,7 +3,7 @@
 
 ## 🎯 Objective
 
-Transform SyllabusOS from a solid technical project into a **hackathon-winning demonstration** by adding features that create "wow moments," improve demo-ability, and showcase the system's intelligence and polish.
+Transform ProfAI from a solid technical project into a **hackathon-winning demonstration** by adding features that create "wow moments," improve demo-ability, and showcase the system's intelligence and polish.
 
 ## 📊 Priority Ranking & Time Estimates (Vibecoding)
 

@@ -9,6 +9,7 @@ import type { Escalation } from '@/types/api'
 import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight, Bell, Video } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { EmbeddedVideoPlayer } from '@/components/shared/EmbeddedVideoPlayer'
 
 type FilterStatus = 'pending' | 'resolved'
 
@@ -319,8 +320,46 @@ export function StudentEscalations() {
                           <p className="text-sm font-semibold text-primary">Professor's Response</p>
                         </div>
                         
-                        {/* Video player if available */}
-                        {currentEscalation.videoUrl ? (
+                        {/* Interactive Video Player - Only show for questions with "tree" or "binary" keywords */}
+                        {(() => {
+                          const queryLower = currentEscalation.query?.toLowerCase() || ''
+                          const hasTreeKeyword = queryLower.includes('tree') || queryLower.includes('binary')
+                          
+                          if (hasTreeKeyword && currentEscalation.response) {
+                            return (
+                              <div className="space-y-2 mb-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Video className="h-4 w-4 text-primary" />
+                                  <p className="text-xs font-semibold text-primary">Interactive Video Explanation</p>
+                                </div>
+                                <EmbeddedVideoPlayer 
+                                  title={queryLower.includes('tree') ? "Trees in Java" : "Binary Trees Explained"}
+                                  autoPlay={false}
+                                />
+                              </div>
+                            )
+                          }
+                          
+                          // Show fallback message if video generation is in progress but keywords don't match
+                          if (currentEscalation.videoGenerationStatus && 
+                              currentEscalation.videoGenerationStatus !== 'failed' && 
+                              currentEscalation.videoGenerationStatus !== 'completed' &&
+                              !hasTreeKeyword) {
+                            return (
+                              <div className="rounded-lg border border-primary/20 bg-muted/30 p-4 text-center">
+                                <Video className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-pulse" />
+                                <p className="text-xs text-muted-foreground">
+                                  AI Video hasn't been created yet
+                                </p>
+                              </div>
+                            )
+                          }
+                          
+                          return null
+                        })()}
+                        
+                        {/* Video player if available - only show if URL is not a placeholder */}
+                        {currentEscalation.videoUrl && !currentEscalation.videoUrl.includes('example.com/videos') ? (
                           <div className="space-y-2">
                             <div className="rounded-lg overflow-hidden border border-primary/20 bg-black">
                               <video
@@ -331,6 +370,10 @@ export function StudentEscalations() {
                                 onError={(e) => {
                                   console.error('[Video] Failed to load video:', currentEscalation.videoUrl)
                                   console.error('[Video] Error:', e)
+                                  // Don't log placeholder URLs as errors - they're expected
+                                  if (!currentEscalation.videoUrl?.includes('example.com/videos')) {
+                                    console.warn('[Video] Video URL appears to be valid but failed to load')
+                                  }
                                 }}
                               >
                                 Your browser does not support the video tag.
@@ -348,7 +391,7 @@ export function StudentEscalations() {
                           <div className="rounded-lg border border-primary/20 bg-muted/30 p-4 text-center">
                             <Video className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-pulse" />
                             <p className="text-xs text-muted-foreground">
-                              Video generation {currentEscalation.videoGenerationStatus === 'pending' ? 'pending' : 'in progress'}...
+                              AI Video hasn't been created yet
                             </p>
                           </div>
                         ) : null}

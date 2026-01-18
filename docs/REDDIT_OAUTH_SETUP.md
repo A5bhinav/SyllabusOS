@@ -17,10 +17,10 @@ OAuth2 provides:
 1. Go to https://www.reddit.com/prefs/apps
 2. Scroll down and click **"Create App"** or **"Create Another App"**
 3. Fill in the form:
-   - **Name**: `SyllabusOS` (or any name you want)
+   - **Name**: `ProfAI` (or any name you want)
    - **App type**: Select **"script"** (bottom option)
-   - **Description**: Optional - "Course feedback scraper for SyllabusOS"
-   - **About URL**: Optional - `https://syllabusos.vercel.app`
+   - **Description**: Optional - "Course feedback scraper for ProfAI"
+   - **About URL**: Optional - `https://profai.vercel.app`
    - **Redirect URI**: Enter `http://localhost:3000` (not actually used for script type, but required)
 4. Click **"Create app"**
 
@@ -36,14 +36,14 @@ After creating the app, you'll see:
 
 Your User-Agent should follow Reddit's format:
 ```
-SyllabusOS/1.0 (by /u/yourredditusername)
+ProfAI/1.0 (by /u/yourredditusername)
 ```
 
 Replace `yourredditusername` with your actual Reddit username (without the `/u/`).
 
 Example:
 ```
-SyllabusOS/1.0 (by /u/gautam123)
+ProfAI/1.0 (by /u/gautam123)
 ```
 
 ## Step 4: Add Environment Variables
@@ -56,7 +56,7 @@ Add these to your `.env.local` file:
 # Reddit OAuth2 Configuration (optional - falls back to public API if not set)
 REDDIT_CLIENT_ID=your_client_id_here
 REDDIT_CLIENT_SECRET=your_client_secret_here
-REDDIT_USER_AGENT=SyllabusOS/1.0 (by /u/yourusername)
+REDDIT_USER_AGENT=ProfAI/1.0 (by /u/yourusername)
 ```
 
 ### Vercel Deployment
@@ -66,7 +66,7 @@ REDDIT_USER_AGENT=SyllabusOS/1.0 (by /u/yourusername)
 3. Add each variable:
    - **Key**: `REDDIT_CLIENT_ID` → **Value**: (paste your client ID)
    - **Key**: `REDDIT_CLIENT_SECRET` → **Value**: (paste your client secret)
-   - **Key**: `REDDIT_USER_AGENT` → **Value**: `SyllabusOS/1.0 (by /u/yourusername)`
+   - **Key**: `REDDIT_USER_AGENT` → **Value**: `ProfAI/1.0 (by /u/yourusername)`
 4. Select **Production**, **Preview**, and **Development** environments
 5. Click **Save**
 6. **Redeploy** your application for changes to take effect
@@ -112,7 +112,7 @@ If OAuth credentials are **not set** or **invalid**, the system automatically fa
 - Verify app type is "script" (not web app)
 
 ### "Reddit OAuth failed: 403"
-- Check User-Agent format: `SyllabusOS/1.0 (by /u/username)`
+- Check User-Agent format: `ProfAI/1.0 (by /u/username)`
 - Make sure you included your actual Reddit username
 
 ### Still getting "No Reddit posts found"
@@ -127,7 +127,7 @@ If OAuth credentials are **not set** or **invalid**, the system automatically fa
 |----------|----------|---------|-------------|
 | `REDDIT_CLIENT_ID` | Yes (for OAuth) | `abcd1234EFGH5678` | From Reddit app settings |
 | `REDDIT_CLIENT_SECRET` | Yes (for OAuth) | `xyz789_SECRET_abc123` | From Reddit app settings |
-| `REDDIT_USER_AGENT` | Yes (for OAuth) | `SyllabusOS/1.0 (by /u/username)` | Must include your Reddit username |
+| `REDDIT_USER_AGENT` | Yes (for OAuth) | `ProfAI/1.0 (by /u/username)` | Must include your Reddit username |
 
 ## Next Steps
 

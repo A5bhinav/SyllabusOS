@@ -70,4 +70,33 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 200ms;
   }
+  
+  /* Video player animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-in {
+    animation: fadeIn 0.7s ease-out forwards;
+  }
+  
+  .slide-in {
+    animation: slideUp 0.7s ease-out forwards;
+  }
 }

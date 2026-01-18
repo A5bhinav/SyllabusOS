@@ -68,7 +68,7 @@ export function ProfessorNav() {
           {/* Logo/Brand */}
           <Link href="/dashboard" className="flex items-center space-x-2">
             <LayoutDashboard className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">SyllabusOS</span>
+            <span className="text-xl font-bold">ProfAI</span>
             <span className="text-sm text-muted-foreground ml-2">Professor</span>
           </Link>
 

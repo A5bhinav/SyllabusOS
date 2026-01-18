@@ -62,7 +62,7 @@ export default async function Home() {
           </div>
 
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
-            SyllabusOS
+            ProfAI
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Your AI professor-in-a-box. Intelligent course management that answers questions, 
@@ -170,7 +170,7 @@ export default async function Home() {
 
         {/* Value Proposition Section */}
         <div className="max-w-3xl mx-auto mt-24 text-center space-y-4">
-          <h2 className="text-3xl font-semibold">Why SyllabusOS?</h2>
+          <h2 className="text-3xl font-semibold">Why ProfAI?</h2>
           <p className="text-lg text-muted-foreground">
             Built for modern education. Handle routine questions automatically while staying 
             in control of what matters most—your students.

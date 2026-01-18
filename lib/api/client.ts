@@ -13,6 +13,14 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - Add auth token if available
 apiClient.interceptors.request.use(
   async (config) => {
+    // Log PUT requests for debugging video generation
+    if (config.method?.toUpperCase() === 'PUT' && config.url?.includes('escalations')) {
+      console.log('%c📤 PUT Request to /api/escalations', 'color: #3b82f6; font-weight: bold;', {
+        url: config.url,
+        data: config.data,
+        timestamp: new Date().toISOString(),
+      })
+    }
     // Get auth token from Supabase session
     // Note: For client-side requests, we'll handle auth via cookies
     // For server-side requests, the API routes will handle auth via createClient()

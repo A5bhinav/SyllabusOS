@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 export const metadata: Metadata = {
-  title: 'SyllabusOS',
+  title: 'ProfAI',
   description: 'AI Professor-in-a-Box - Course management system',
 }
 
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body suppressHydrationWarning>
         <ErrorBoundary>
           {children}

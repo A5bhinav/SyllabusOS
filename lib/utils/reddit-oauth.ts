@@ -21,7 +21,7 @@ export async function getRedditToken(): Promise<string> {
   const clientId = process.env.REDDIT_CLIENT_ID
   const clientSecret = process.env.REDDIT_CLIENT_SECRET
   // User-Agent must include your Reddit username - update this or set REDDIT_USER_AGENT env var
-  const userAgent = process.env.REDDIT_USER_AGENT || 'SyllabusOS/1.0 (by /u/yourusername)'
+  const userAgent = process.env.REDDIT_USER_AGENT || 'ProfAI/1.0 (by /u/yourusername)'
 
   if (!clientId || !clientSecret) {
     throw new Error('REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET must be set in environment variables')

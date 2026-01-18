@@ -1,6 +1,6 @@
 ---
-name: SyllabusOS Frontend Plan (Gautam)
-overview: "Frontend implementation plan for SyllabusOS: UI components, pages, and user interfaces that consume the backend APIs built by Abhinav."
+name: ProfAI Frontend Plan (Gautam)
+overview: "Frontend implementation plan for ProfAI: UI components, pages, and user interfaces that consume the backend APIs built by Abhinav."
 todos:
   - id: project-setup
     content: Initialize Next.js project with TypeScript, Tailwind CSS, and Shadcn/UI. Set up folder structure and install dependencies.
@@ -139,7 +139,7 @@ todos:
       - error-handling
 ---
 
-# SyllabusOS Frontend Plan (Gautam)
+# ProfAI Frontend Plan (Gautam)
 
 ## Overview
 
@@ -148,7 +148,7 @@ This plan covers all frontend UI/UX work. You'll consume the APIs that Abhinav b
 ## Project Structure (Frontend Focus)
 
 ```javascript
-SyllabusOS/
+ProfAI/
 ├── app/                          # Next.js App Router (FRONTEND)
 │   ├── (auth)/                   # Auth routes (FRONTEND)
 │   │   ├── login/page.tsx

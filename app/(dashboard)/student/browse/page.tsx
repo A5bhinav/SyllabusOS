@@ -18,7 +18,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-1',
     professorName: 'Dr. Patrick Tantalo',
     professorEmail: 'tantalo@ucsc.edu',
-    joinCode: 'CMPS1',
+    joinCode: 'CMPS10',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -29,7 +29,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-2',
     professorName: 'Prof. Darrell Long',
     professorEmail: 'darrell@ucsc.edu',
-    joinCode: 'CMPS2',
+    joinCode: 'CMPS12',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -40,7 +40,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-3',
     professorName: 'Dr. Francois Ziegler',
     professorEmail: 'ziegler@ucsc.edu',
-    joinCode: 'MATH1',
+    joinCode: 'MATH19',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -51,7 +51,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-4',
     professorName: 'Prof. Dustin Long',
     professorEmail: 'dlong@ucsc.edu',
-    joinCode: 'CSE10',
+    joinCode: 'CSE101',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -62,7 +62,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-5',
     professorName: 'Dr. Mark Traugott',
     professorEmail: 'traugott@ucsc.edu',
-    joinCode: 'ECON1',
+    joinCode: 'ECON01',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -73,7 +73,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-6',
     professorName: 'Dr. Glenn Millhauser',
     professorEmail: 'glenn@ucsc.edu',
-    joinCode: 'CHEM1',
+    joinCode: 'CHEM1B',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -84,7 +84,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-7',
     professorName: 'Dr. Michael Dine',
     professorEmail: 'mdine@ucsc.edu',
-    joinCode: 'PHYS5',
+    joinCode: 'PHYS5A',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -95,7 +95,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-8',
     professorName: 'Dr. William Saxton',
     professorEmail: 'saxton@ucsc.edu',
-    joinCode: 'BIOL2',
+    joinCode: 'BIOL20',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -106,7 +106,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-9',
     professorName: 'Prof. Bruno Sanso',
     professorEmail: 'sanso@ucsc.edu',
-    joinCode: 'STAT5',
+    joinCode: 'STAT05',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -117,7 +117,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-10',
     professorName: 'Prof. Micah Perks',
     professorEmail: 'mperks@ucsc.edu',
-    joinCode: 'LIT1',
+    joinCode: 'LIT001',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -128,7 +128,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-11',
     professorName: 'Dr. Karen Page',
     professorEmail: 'kpage@ucsc.edu',
-    joinCode: 'PSYC1',
+    joinCode: 'PSYC01',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -139,7 +139,7 @@ const FAKE_COURSES: Course[] = [
     professorId: 'prof-12',
     professorName: 'Prof. Charlie McDowell',
     professorEmail: 'mcdowell@ucsc.edu',
-    joinCode: 'CSE12',
+    joinCode: 'CSE012',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -185,6 +185,12 @@ export default function BrowseCoursesPage() {
     loadCourses()
   }, [])
 
+  // Generate slug from course name (e.g., "CMPS 101" -> "cmps-101")
+  function getCourseSlug(course: Course): string {
+    const courseCode = course.name.split(' - ')[0] // e.g., "CMPS 101"
+    return courseCode.toLowerCase().replace(/\s+/g, '-') // e.g., "cmps-101"
+  }
+
   function handleCourseClick(course: Course) {
     if (course.isEnrolled) {
       // If already enrolled, go directly to chat
@@ -192,8 +198,9 @@ export default function BrowseCoursesPage() {
       return
     }
     
-    // Navigate to course detail page with feedback
-    router.push(`/student/courses/${course.id}`)
+    // Navigate to course detail page using slug (e.g., /student/courses/cmps-101)
+    const slug = getCourseSlug(course)
+    router.push(`/student/courses/${slug}`)
   }
 
 

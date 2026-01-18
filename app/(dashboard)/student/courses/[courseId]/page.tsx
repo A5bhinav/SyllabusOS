@@ -28,7 +28,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-1',
     professorName: 'Dr. Patrick Tantalo',
     professorEmail: 'tantalo@ucsc.edu',
-    joinCode: 'CMPS1',
+    joinCode: 'CMPS10',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -39,7 +39,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-2',
     professorName: 'Prof. Darrell Long',
     professorEmail: 'darrell@ucsc.edu',
-    joinCode: 'CMPS2',
+    joinCode: 'CMPS12',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -50,7 +50,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-3',
     professorName: 'Dr. Francois Ziegler',
     professorEmail: 'ziegler@ucsc.edu',
-    joinCode: 'MATH1',
+    joinCode: 'MATH19',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -61,7 +61,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-4',
     professorName: 'Prof. Dustin Long',
     professorEmail: 'dlong@ucsc.edu',
-    joinCode: 'CSE10',
+    joinCode: 'CSE101',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -72,7 +72,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-5',
     professorName: 'Dr. Mark Traugott',
     professorEmail: 'traugott@ucsc.edu',
-    joinCode: 'ECON1',
+    joinCode: 'ECON01',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -83,7 +83,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-6',
     professorName: 'Dr. Glenn Millhauser',
     professorEmail: 'glenn@ucsc.edu',
-    joinCode: 'CHEM1',
+    joinCode: 'CHEM1B',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -94,7 +94,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-7',
     professorName: 'Dr. Michael Dine',
     professorEmail: 'mdine@ucsc.edu',
-    joinCode: 'PHYS5',
+    joinCode: 'PHYS5A',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -105,7 +105,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-8',
     professorName: 'Dr. William Saxton',
     professorEmail: 'saxton@ucsc.edu',
-    joinCode: 'BIOL2',
+    joinCode: 'BIOL20',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -116,7 +116,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-9',
     professorName: 'Prof. Bruno Sanso',
     professorEmail: 'sanso@ucsc.edu',
-    joinCode: 'STAT5',
+    joinCode: 'STAT05',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -127,7 +127,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-10',
     professorName: 'Prof. Micah Perks',
     professorEmail: 'mperks@ucsc.edu',
-    joinCode: 'LIT1',
+    joinCode: 'LIT001',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -138,7 +138,7 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-11',
     professorName: 'Dr. Karen Page',
     professorEmail: 'kpage@ucsc.edu',
-    joinCode: 'PSYC1',
+    joinCode: 'PSYC01',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -149,17 +149,32 @@ const FAKE_UCSC_COURSES: Course[] = [
     professorId: 'prof-12',
     professorName: 'Prof. Charlie McDowell',
     professorEmail: 'mcdowell@ucsc.edu',
-    joinCode: 'CSE12',
+    joinCode: 'CSE012',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
 ]
 
+// Generate slug from course name (e.g., "CMPS 101" -> "cmps-101")
+function getCourseSlug(course: Course): string {
+  const courseCode = course.name.split(' - ')[0] // e.g., "CMPS 101"
+  return courseCode.toLowerCase().replace(/\s+/g, '-') // e.g., "cmps-101"
+}
+
+// Find course by slug (e.g., "cmps-101" -> matches "CMPS 101")
+function findCourseBySlug(slug: string, courses: Course[]): Course | undefined {
+  const normalizedSlug = slug.toLowerCase()
+  return courses.find(course => {
+    const courseSlug = getCourseSlug(course)
+    return courseSlug === normalizedSlug
+  })
+}
+
 export default function CourseDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const courseId = params.courseId as string
+  const courseSlug = params.courseId as string // This is now a slug, not an ID
   
   const [loading, setLoading] = useState(true)
   const [course, setCourse] = useState<Course | null>(null)
@@ -168,40 +183,59 @@ export default function CourseDetailPage() {
 
   useEffect(() => {
     loadCourseAndFeedback()
-  }, [courseId])
+  }, [courseSlug])
 
   async function loadCourseAndFeedback() {
     try {
       setLoading(true)
       setError(null)
       
-      // Check if it's a fake course first
+      // Find course by slug first (for fake courses)
       let courseData: Course | null = null
-      const fakeCourse = FAKE_UCSC_COURSES.find(c => c.id === courseId)
+      const fakeCourse = findCourseBySlug(courseSlug, FAKE_UCSC_COURSES)
       if (fakeCourse) {
         courseData = fakeCourse
       } else {
-        // Load course info from API
-        const courseRes = await fetch(`/api/courses/${courseId}`)
-        if (!courseRes.ok) {
-          throw new Error('Course not found')
+        // If slug doesn't match fake courses, try to load from API
+        // The API might still use IDs, so try the slug as ID first
+        try {
+          const courseRes = await fetch(`/api/courses/${courseSlug}`)
+          if (courseRes.ok) {
+            courseData = await courseRes.json()
+          }
+        } catch (apiErr) {
+          // If API fails, try fetching all courses and finding by slug
+          try {
+            const allCoursesRes = await fetch('/api/courses')
+            if (allCoursesRes.ok) {
+              const allCourses: Course[] = await allCoursesRes.json()
+              const foundCourse = findCourseBySlug(courseSlug, allCourses)
+              if (foundCourse) {
+                courseData = foundCourse
+              }
+            }
+          } catch (fetchErr) {
+            console.error('Error fetching all courses:', fetchErr)
+          }
         }
-        courseData = await courseRes.json()
+      }
+      
+      if (!courseData) {
+        throw new Error('Course not found')
       }
       
       // Set course state
       setCourse(courseData)
       
-      // Load feedback (this may take a while due to Reddit scraping)
-      // Load feedback in parallel - don't wait for it
-      fetch(`/api/courses/${courseId}/feedback`)
+      // Load feedback using the actual course ID (not slug)
+      fetch(`/api/courses/${courseData.id}/feedback`)
         .then(async (feedbackRes) => {
           if (feedbackRes.ok) {
             const feedbackData = await feedbackRes.json()
             setFeedback(feedbackData)
           } else {
             // Use enhanced default feedback if API fails
-            const courseCode = courseData?.name.split(' - ')[0] || courseId
+            const courseCode = courseData?.name.split(' - ')[0] || courseSlug
             const defaultFeedback = getDefaultFeedbackForCourse(courseCode, courseData?.name || '')
             setFeedback(defaultFeedback)
           }
@@ -209,7 +243,7 @@ export default function CourseDetailPage() {
         .catch((feedbackErr) => {
           console.error('Error loading feedback:', feedbackErr)
           // Use enhanced default feedback on error
-          const courseCode = courseData?.name.split(' - ')[0] || courseId
+          const courseCode = courseData?.name.split(' - ')[0] || courseSlug
           const defaultFeedback = getDefaultFeedbackForCourse(courseCode, courseData?.name || '')
           setFeedback(defaultFeedback)
         })
@@ -633,10 +667,10 @@ export default function CourseDetailPage() {
           )}
 
           {/* Enroll Button */}
-          {!course.isEnrolled && (
+          {!course.isEnrolled && course && (
             <div className="mt-8 flex justify-center">
               <Button size="lg" className="shadow-lg" asChild>
-                <Link href={`/student/enroll/${courseId}`}>
+                <Link href={`/student/enroll/${course.id}`}>
                   Enroll in Course
                 </Link>
               </Button>

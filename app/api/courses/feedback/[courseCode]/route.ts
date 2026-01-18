@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse } from '@/lib/utils/api-errors'
-import { getRedditToken } from '@/lib/utils/reddit-oauth'
+import { scrapeRedditHTMLMultiple } from '@/lib/utils/reddit-html-scraper'
 
-// Vercel configuration
+// Vercel configuration - MUST be set for serverless functions
 export const runtime = 'nodejs'
-export const maxDuration = 30 // 30 seconds for Reddit API calls
+export const maxDuration = 30 // 30 seconds max (matches vercel.json)
+export const dynamic = 'force-dynamic' // Always fetch fresh data, never cache
 
 // Define CourseFeedback type for this route
 export interface CourseFeedback {
@@ -142,264 +143,93 @@ function normalizeCourseCode(code: string): string | null {
 }
 
 /**
- * Scrape Reddit using OAuth2 API (more reliable)
+ * Convert HTML-scraped posts to the format expected by processRedditPosts
+ * This maintains backward compatibility with existing code
  */
-async function scrapeRedditWithOAuth(
-  courseCode: string,
-  subreddit: string,
-  userAgent: string
-): Promise<any[]> {
-  const token = await getRedditToken()
-  const searchTerms = [courseCode, courseCode.replace(/\s+/g, '')]
-  let allPosts: any[] = []
-
-  for (const term of searchTerms) {
+function convertHTMLPostsToAPIFormat(htmlPosts: any[]): any[] {
+  return htmlPosts.map(post => {
+    // Parse date - handle both date strings and relative times
+    let createdUtc = Date.now() / 1000 // Default to now
     try {
-      const url = `https://oauth.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(term)}&restrict_sr=1&limit=10&sort=relevance&t=all`
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'User-Agent': userAgent,
-        },
-        cache: 'no-store',
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data?.data?.children) {
-          const posts = data.data.children.filter((child: any) => {
-            const postData = child.data
-            return postData && !postData.removed_by_category && postData.title
-          })
-          if (posts.length > 0) {
-            allPosts = [...allPosts, ...posts]
-            console.log(`[Reddit OAuth] Found ${posts.length} posts for "${term}"`)
-          }
+      if (post.date && post.date !== 'Unknown') {
+        const parsed = new Date(post.date)
+        if (!isNaN(parsed.getTime())) {
+          createdUtc = parsed.getTime() / 1000
         }
       }
-      await new Promise(resolve => setTimeout(resolve, 500))
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.error(`[Reddit OAuth] Error searching "${term}":`, err.message)
+    } catch {
+      // Keep default
+    }
+
+    return {
+      data: {
+        title: post.title,
+        selftext: post.selftext || '',
+        permalink: post.permalink,
+        url: post.url,
+        score: post.score || 0,
+        created_utc: createdUtc,
+        id: post.url.split('/').filter(Boolean).pop() || Math.random().toString(36),
       }
     }
-  }
-
-  return allPosts
+  })
 }
 
 /**
- * Scrape Reddit using public JSON API (fallback)
- */
-async function scrapeRedditPublicJSON(
-  courseCode: string,
-  subreddit: string,
-  userAgent: string
-): Promise<any[]> {
-  const baseUrl = 'https://www.reddit.com'
-  const searchTerms = [
-    courseCode,
-    courseCode.replace(/\s+/g, ''),
-    courseCode.replace(/\s+/g, ' '),
-    courseCode.match(/^([A-Z]+)/)?.[1] + ' ' + courseCode.match(/(\d+)/)?.[1],
-  ].filter(Boolean) as string[]
-  
-  let allPosts: any[] = []
-
-  // Try search endpoint
-  console.log(`[Reddit Public JSON] Searching for course "${courseCode}" with terms:`, searchTerms)
-  
-  for (const term of searchTerms) {
-      try {
-        // Reddit JSON API: append .json to any Reddit URL - no auth required!
-        const searchUrl = `${baseUrl}/r/${subreddit}/search.json`
-        const params = new URLSearchParams({
-          q: term,
-          restrict_sr: '1',
-          limit: '10',
-          sort: 'relevance',
-          t: 'all'
-        })
-        const fullUrl = `${searchUrl}?${params.toString()}`
-        
-        // Create AbortController for timeout on Vercel
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
-        
-        const response = await fetch(fullUrl, {
-          headers: { 
-            'User-Agent': userAgent,
-            'Accept': 'application/json'
-          },
-          cache: 'no-store', // Don't cache on Vercel
-          signal: controller.signal
-        })
-        
-        clearTimeout(timeoutId)
-        
-        if (response.ok) {
-          const data = await response.json()
-          
-          // Reddit JSON structure: data.data.children contains posts
-          if (data && data.data && data.data.children) {
-            const posts = data.data.children.filter((child: any) => {
-              // Filter out deleted/removed posts
-              const postData = child.data || child
-              return postData && !postData.removed_by_category && postData.title
-            })
-            
-            if (posts && posts.length > 0) {
-              allPosts = [...allPosts, ...posts]
-              console.log(`[Reddit JSON API] Found ${posts.length} valid posts for "${term}"`)
-            } else {
-              console.log(`[Reddit JSON API] No valid posts found for "${term}" (may have been removed/deleted)`)
-            }
-          } else {
-            console.warn(`[Reddit] Invalid response structure for "${term}" - data.data.children not found`)
-          }
-        } else {
-          const statusText = response.statusText
-          console.warn(`[Reddit] Search response not OK for "${term}": ${response.status} ${statusText}`)
-          // Log response body for debugging (first 200 chars)
-          try {
-            const text = await response.text()
-            console.warn(`[Reddit] Response body preview:`, text.substring(0, 200))
-          } catch {
-            // Ignore error reading response
-          }
-        }
-        
-        // Small delay between requests to avoid rate limiting (like Python script)
-        await new Promise(resolve => setTimeout(resolve, 500))
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.error(`[Reddit] Request timeout for "${term}" (10s timeout)`)
-        } else {
-          console.error(`[Reddit] Error searching "${term}":`, err.message || err)
-        }
-        // Continue to next search term even if one fails
-      }
-    }
-    
-    // Method 2: Fallback - Get recent posts from subreddit and filter client-side
-    // This matches the Python script's approach when search fails
-    if (allPosts.length === 0) {
-      try {
-        console.log(`[Reddit] Search returned no results, trying recent posts fallback`)
-        // Reddit JSON API: /r/UCSC/new.json - no auth needed!
-        const recentUrl = `${baseUrl}/r/${subreddit}/new.json?limit=25`
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
-        
-        const response = await fetch(recentUrl, {
-          headers: { 
-            'User-Agent': userAgent,
-            'Accept': 'application/json'
-          },
-          cache: 'no-store',
-          signal: controller.signal
-        })
-        
-        clearTimeout(timeoutId)
-        
-        if (response.ok) {
-          const data = await response.json()
-          
-          if (data && data.data && data.data.children) {
-            const posts = data.data.children
-            // Filter posts that mention the course code (client-side filtering)
-            const courseCodeLower = courseCode.toLowerCase()
-            const filtered = posts.filter((p: any) => {
-              const postData = p.data || {}
-              const title = (postData.title || '').toLowerCase()
-              const text = (postData.selftext || '').toLowerCase()
-              return title.includes(courseCodeLower) || text.includes(courseCodeLower)
-            })
-            
-            if (filtered.length > 0) {
-              allPosts = filtered
-              console.log(`[Reddit JSON API] Found ${filtered.length} posts via fallback method`)
-            }
-          }
-        } else {
-          console.warn(`[Reddit] Fallback response not OK: ${response.status} ${response.statusText}`)
-        }
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.error(`[Reddit] Fallback request timeout (10s)`)
-        } else {
-          console.error(`[Reddit] Fallback method failed:`, err.message || err)
-        }
-      }
-    }
-
-  return allPosts
-}
-
-/**
- * Reddit Scraper - tries OAuth first, falls back to public JSON API
+ * Reddit HTML Scraper - NO API NEEDED! Scrapes HTML directly
+ * Works perfectly on Vercel with no authentication required
  */
 async function scrapeRedditForCourse(
   courseCode: string,
   fullCourseName: string
 ): Promise<CourseFeedback> {
   const subreddit = 'UCSC'
-  let allPosts: any[] = []
-  
-  const userAgent = process.env.REDDIT_USER_AGENT || 'SyllabusOS/1.0 (Node.js; +https://syllabusos.vercel.app)'
-  const hasOAuth = !!(process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET)
   
   try {
-    // Try OAuth2 API first (more reliable, higher rate limits)
-    if (hasOAuth) {
-      try {
-        console.log('[Reddit] Attempting OAuth2 authenticated API')
-        allPosts = await scrapeRedditWithOAuth(courseCode, subreddit, userAgent)
-        if (allPosts.length > 0) {
-          console.log(`[Reddit OAuth] Found ${allPosts.length} posts`)
-        }
-      } catch (oauthError: any) {
-        console.warn('[Reddit OAuth] Failed, falling back to public JSON API:', oauthError.message)
-        // Fall through to public JSON API
-      }
-    }
+    console.log(`[Reddit HTML] Scraping Reddit HTML for course: ${courseCode}`)
     
-    // Fallback to public JSON API if OAuth failed or not configured
-    if (allPosts.length === 0) {
-      console.log('[Reddit] Using public JSON API (no auth)')
-      allPosts = await scrapeRedditPublicJSON(courseCode, subreddit, userAgent)
-    }
+    // Generate search terms
+    const searchTerms = [
+      courseCode,
+      courseCode.replace(/\s+/g, ''),
+      courseCode.replace(/\s+/g, ' '),
+      courseCode.match(/^([A-Z]+)/)?.[1] + ' ' + courseCode.match(/(\d+)/)?.[1],
+    ].filter(Boolean) as string[]
 
-    // Remove duplicates (like Python script's unique post handling)
+    // Scrape HTML directly - NO API AUTHENTICATION NEEDED!
+    const htmlPosts = await scrapeRedditHTMLMultiple(subreddit, searchTerms, {
+      limit: 10,
+      sort: 'relevance',
+    })
+
+    console.log(`[Reddit HTML] Found ${htmlPosts.length} posts via HTML scraping`)
+
+    // Convert HTML posts to the format expected by processRedditPosts
+    const apiFormatPosts = convertHTMLPostsToAPIFormat(htmlPosts)
+
+    // Remove duplicates
     const uniquePosts = Array.from(
-      new Map(allPosts.map((p: any) => {
+      new Map(apiFormatPosts.map((p: any) => {
         const permalink = p.data?.permalink || ''
         const postId = p.data?.id || ''
         return [permalink || postId, p]
       })).values()
     ).filter((p: any) => p && p.data)
 
-    console.log(`[Reddit JSON API] Total unique posts found: ${uniquePosts.length}`)
+    console.log(`[Reddit HTML] Total unique posts after deduplication: ${uniquePosts.length}`)
 
     if (uniquePosts.length === 0) {
-      console.warn(`[Reddit] No posts found for ${courseCode}`)
-      console.log(`[Reddit] Environment: ${process.env.VERCEL ? 'Vercel' : 'Local'}`)
-      console.log(`[Reddit] Using JSON API (no authentication required) - check User-Agent if blocked`)
+      console.warn(`[Reddit HTML] No posts found for ${courseCode}`)
+      console.log(`[Reddit HTML] Environment: ${process.env.VERCEL ? 'Vercel' : 'Local'}`)
     }
 
     // Always process posts, even if empty - processRedditPosts handles empty arrays
     return processRedditPosts(uniquePosts, courseCode, fullCourseName)
   } catch (error: any) {
-    console.error('[Reddit] Critical error scraping:', error.message || error)
+    console.error('[Reddit HTML] Critical error scraping:', error.message || error)
     // Even on error, try to return something useful with at least basic stats
     const defaultFeedback = getDefaultFeedback(courseCode, fullCourseName)
-    console.warn('[Reddit] Returning default feedback due to error')
+    console.warn('[Reddit HTML] Returning default feedback due to error')
     return defaultFeedback
   }
 }

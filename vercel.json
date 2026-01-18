@@ -21,6 +21,10 @@
     "app/api/demo/load/route.ts": {
       "maxDuration": 60,
       "memory": 512
+    },
+    "app/api/courses/feedback/[courseCode]/route.ts": {
+      "maxDuration": 30,
+      "memory": 512
     }
   },
   "regions": ["iad1"]

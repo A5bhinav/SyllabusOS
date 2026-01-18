@@ -83,31 +83,38 @@ export function PulseReport() {
     ? [
         { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
         { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
-        { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b' },
+        { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
       ].filter((item) => item.value > 0)
     : []
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Pulse Report</CardTitle>
-            <CardDescription>Visual analytics dashboard for student questions and activity</CardDescription>
+    <Card className="overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-purple-500/20">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <CardTitle className="break-words text-xl">Pulse Report</CardTitle>
+                <CardDescription className="break-words text-wrap mt-1">Visual analytics dashboard for student questions and activity</CardDescription>
+              </div>
+            </div>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={loadPulseData}
             disabled={loading}
-            className="gap-2"
+            className="gap-2 shrink-0"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-w-full overflow-visible">
         <div className="space-y-8">
           {/* Main Statistics - Large Colored Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -160,28 +167,32 @@ export function PulseReport() {
           <div className="space-y-6">
             {/* Query Distribution - Pie Chart */}
             {pulseData.queryDistribution && (
-              <div className="rounded-lg border p-6 bg-background">
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="p-2 rounded-lg bg-primary/10">
+              <div className="rounded-lg border p-6 bg-background w-full max-w-full overflow-visible">
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
                     <PieChartIcon className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold">Query Distribution</h3>
+                  <h3 className="text-lg font-semibold break-words text-wrap">Query Distribution</h3>
                 </div>
+                <p className="text-sm text-muted-foreground mb-8 max-w-2xl break-words text-wrap">
+                  Shows how student questions are categorized. <span className="font-medium text-foreground">Escalated</span> queries are personal issues, emergencies, or complex problems that require your direct attention.
+                </p>
                 {pieChartData.length === 0 ? (
                   <div className="flex items-center justify-center h-[250px] rounded-lg border bg-muted/50">
                     <p className="text-sm text-muted-foreground">No query data available.</p>
                   </div>
                 ) : (
-                  <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                  <div className="w-full max-w-full mt-4">
+                    <div className="h-[300px] min-w-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart margin={{ top: 10, right: 20, bottom: 60, left: 20 }}>
                         <Pie
                           data={pieChartData}
                           cx="50%"
-                          cy="50%"
+                          cy="45%"
                           labelLine={false}
-                          label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                          outerRadius={75}
+                          label={false}
+                          outerRadius={70}
                           innerRadius={25}
                           fill="#8884d8"
                           dataKey="value"
@@ -189,39 +200,66 @@ export function PulseReport() {
                           animationDuration={800}
                           paddingAngle={2}
                         >
-                          {pieChartData.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={entry.color}
-                              stroke={entry.color}
-                              strokeWidth={2}
-                              style={{ 
-                                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
-                                cursor: 'pointer',
-                                transition: 'opacity 0.2s'
-                              }}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--popover))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                            padding: '12px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          }}
-                          formatter={(value: number | undefined) => [`${value ?? 0} queries`, 'Count']}
-                          labelStyle={{ fontWeight: 600, marginBottom: '4px' }}
-                        />
-                        <Legend 
-                          verticalAlign="bottom"
-                          height={36}
-                          iconType="circle"
-                          formatter={(value) => <span className="text-sm">{value}</span>}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                            {pieChartData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.color}
+                                stroke={entry.color}
+                                strokeWidth={2}
+                                style={{ 
+                                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                                  cursor: 'pointer',
+                                  transition: 'opacity 0.2s'
+                                }}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--popover))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              padding: '12px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              maxWidth: '200px',
+                              wordWrap: 'break-word',
+                            }}
+                            formatter={(value: number | undefined, name: string) => [
+                              `${value ?? 0} ${value === 1 ? 'query' : 'queries'}`,
+                              name === 'Escalated' 
+                                ? 'Needs Professor Review' 
+                                : name
+                            ]}
+                            labelStyle={{ 
+                              fontWeight: 600, 
+                              marginBottom: '4px',
+                              wordBreak: 'break-word'
+                            }}
+                          />
+                          <Legend 
+                            verticalAlign="bottom"
+                            height={50}
+                            iconType="circle"
+                            wrapperStyle={{ 
+                              paddingTop: '10px',
+                              fontSize: '12px',
+                              width: '100%',
+                              maxWidth: '100%',
+                            }}
+                            formatter={(value: string) => {
+                              // Better labels for legend with percentage
+                              const entry = pieChartData.find(d => d.name === value)
+                              const total = pieChartData.reduce((sum, d) => sum + d.value, 0)
+                              const percentage = entry && total > 0 ? ((entry.value / total) * 100).toFixed(0) : '0'
+                              if (value === 'Escalated') {
+                                return `Needs Professor (${percentage}%)`
+                              }
+                              return `${value} (${percentage}%)`
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 )}
               </div>
@@ -229,24 +267,25 @@ export function PulseReport() {
 
             {/* Daily Trends - Line Chart */}
             {pulseData.dailyTrends && pulseData.dailyTrends.length > 0 && (
-              <div className="rounded-lg border p-6 bg-background">
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="p-2 rounded-lg bg-primary/10">
+              <div className="rounded-lg border p-6 bg-background overflow-hidden w-full max-w-full">
+                <div className="flex items-center gap-2 mb-6 flex-wrap">
+                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
                     <TrendingUp className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold">Questions Over Time (Last 14 Days)</h3>
+                  <h3 className="text-lg font-semibold break-words text-wrap">Questions Over Time (Last 14 Days)</h3>
                 </div>
                 {lineChartData.length === 0 ? (
                   <div className="flex items-center justify-center h-[250px] rounded-lg border bg-muted/50">
                     <p className="text-sm text-muted-foreground">No trend data available.</p>
                   </div>
                 ) : (
-                  <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart 
-                        data={lineChartData}
-                        margin={{ top: 10, right: 20, left: 0, bottom: 60 }}
-                      >
+                  <div className="w-full max-w-full overflow-hidden">
+                    <div className="h-[250px] min-w-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart 
+                          data={lineChartData}
+                          margin={{ top: 10, right: 20, left: 0, bottom: 60 }}
+                        >
                         <CartesianGrid 
                           strokeDasharray="3 3" 
                           stroke="hsl(var(--muted))"
@@ -277,9 +316,16 @@ export function PulseReport() {
                             borderRadius: '8px',
                             padding: '12px',
                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            maxWidth: '250px',
+                            wordWrap: 'break-word',
                           }}
                           formatter={(value: number | undefined) => [`${value ?? 0} queries`, 'Queries']}
-                          labelStyle={{ fontWeight: 600, marginBottom: '4px', color: 'hsl(var(--foreground))' }}
+                          labelStyle={{ 
+                            fontWeight: 600, 
+                            marginBottom: '4px', 
+                            color: 'hsl(var(--foreground))',
+                            wordBreak: 'break-word'
+                          }}
                           labelFormatter={(label) => {
                             const data = lineChartData.find((d) => d.date === label)
                             return data?.fullDate ? format(new Date(data.fullDate), 'EEEE, MMM d, yyyy') : label
@@ -308,6 +354,7 @@ export function PulseReport() {
                         />
                       </LineChart>
                     </ResponsiveContainer>
+                    </div>
                   </div>
                 )}
               </div>

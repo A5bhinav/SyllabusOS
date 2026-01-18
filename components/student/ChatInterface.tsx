@@ -9,7 +9,6 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { MessageBubble, type Message } from './MessageBubble'
 import { sendChatMessage, getChatHistory } from '@/lib/api/chat'
 import { Send, AlertCircle } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
 
 interface ChatInterfaceProps {
   courseId: string
@@ -20,7 +19,6 @@ interface ChatInterfaceProps {
 type OptimisticMessage = Message | { id: string; text: string; role: 'user' | 'assistant'; timestamp: Date; pending?: boolean }
 
 export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatInterfaceProps) {
-  const { toast } = useToast()
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
@@ -228,14 +226,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
       
       // Clear any previous suggested follow-ups by resetting (they'll be generated from the new message)
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || err.message || 'Failed to send message. Please try again.'
-      setError(errorMsg)
-      
-      toast({
-        title: 'Message Failed',
-        description: errorMsg,
-        variant: 'destructive',
-      })
+      setError(err.response?.data?.error || err.message || 'Failed to send message. Please try again.')
       
       // Remove the optimistic user message on error by reverting messages state
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id))
@@ -440,13 +431,19 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question about your course..."
+            placeholder={isLoading ? "AI is responding... You can type your next question..." : "Ask a question about your course..."}
             className="min-h-[56px] max-h-[200px] resize-none text-base"
-            disabled={isLoading}
+            autoFocus={false}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              // Allow typing always - only prevent submit on Enter when loading
+              if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                 e.preventDefault()
                 handleSubmit(e as any)
+              }
+              // Allow Shift+Enter to create new line
+              if (e.key === 'Enter' && e.shiftKey) {
+                // Let default behavior happen (new line)
+                return
               }
             }}
           />

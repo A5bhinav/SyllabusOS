@@ -1,4 +1,5 @@
 import { createServiceClient } from '../supabase/server'
+import { categorizeEscalation } from '../utils/escalation-categorizer'
 import type { Escalation } from '@/types/database'
 
 export interface EscalationResult {
@@ -14,6 +15,7 @@ export interface EscalationResult {
 export class EscalationHandler {
   /**
    * Create an escalation entry
+   * Automatically categorizes the escalation based on query content
    */
   async createEscalation(
     query: string,
@@ -24,6 +26,13 @@ export class EscalationHandler {
     const supabase = createServiceClient()
 
     try {
+      // Auto-categorize if category not provided
+      let finalCategory: string | null = category || null
+      if (!finalCategory) {
+        const categorization = categorizeEscalation(query)
+        finalCategory = categorization.category
+      }
+
       // Insert escalation entry
       const { data, error } = await supabase
         .from('escalations')
@@ -32,7 +41,7 @@ export class EscalationHandler {
           student_id: studentId,
           query,
           status: 'pending',
-          category: category || null,
+          category: finalCategory,
         })
         .select()
         .single()

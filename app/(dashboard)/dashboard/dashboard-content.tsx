@@ -10,37 +10,17 @@ import { EscalationQueue } from '@/components/professor/EscalationQueue'
 import { PulseReport } from '@/components/professor/PulseReport'
 import { CourseManagement } from '@/components/professor/CourseManagement'
 import { EnrolledStudents } from '@/components/professor/EnrolledStudents'
+import { ProfessorNav } from '@/components/professor/ProfessorNav'
 import { triggerConductor } from '@/lib/api/conductor'
-import { LogOut, Play, RefreshCw } from 'lucide-react'
+import { Play, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export default function DashboardContent() {
   const router = useRouter()
   const { toast } = useToast()
-  const [signingOut, setSigningOut] = useState(false)
   const [conductorLoading, setConductorLoading] = useState(false)
   const [conductorError, setConductorError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-
-  const handleSignOut = async () => {
-    setSigningOut(true)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signOut()
-      
-      if (error) {
-        console.error('Error signing out:', error)
-      }
-      
-      router.push('/login')
-      router.refresh()
-    } catch (error) {
-      console.error('Error signing out:', error)
-      router.push('/login')
-    } finally {
-      setSigningOut(false)
-    }
-  }
 
   const handleTriggerConductor = async () => {
     try {
@@ -168,6 +148,7 @@ export default function DashboardContent() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

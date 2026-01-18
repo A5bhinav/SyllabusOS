@@ -13,7 +13,8 @@ let tokenExpiresAt: number = 0
  */
 export async function getRedditToken(): Promise<string> {
   // Return cached token if still valid (with 60s buffer)
-  if (cachedToken && Date.now() < tokenExpiresAt - 60000) {
+  if (cachedToken !== null && Date.now() < tokenExpiresAt - 60000) {
+    // At this point, cachedToken is guaranteed to be string (not null)
     return cachedToken
   }
 
@@ -48,16 +49,17 @@ export async function getRedditToken(): Promise<string> {
 
     const data = await response.json()
     
-    if (!data.access_token) {
+    if (!data.access_token || typeof data.access_token !== 'string') {
       throw new Error('Reddit OAuth response missing access_token')
     }
 
     // Cache token (expires_in is in seconds, convert to milliseconds)
-    cachedToken = data.access_token
+    const token: string = data.access_token
+    cachedToken = token
     tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000 // Subtract 60s buffer
 
     console.log('[Reddit OAuth] Token obtained successfully')
-    return cachedToken
+    return token
   } catch (error: any) {
     console.error('[Reddit OAuth] Failed to get token:', error.message || error)
     throw error

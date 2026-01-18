@@ -368,25 +368,30 @@ export async function PUT(request: NextRequest) {
 
     // Trigger async video generation if response was provided
     if (response !== undefined && response.trim().length > 0) {
-      // Get student and course context
-      const studentProfile = Array.isArray(updatedEscalation.profiles)
-        ? updatedEscalation.profiles[0]
-        : updatedEscalation.profiles
-      const course = Array.isArray(updatedEscalation.courses)
-        ? updatedEscalation.courses[0]
-        : updatedEscalation.courses
+      try {
+        // Get student and course context
+        const studentProfile = Array.isArray(updatedEscalation.profiles)
+          ? updatedEscalation.profiles[0]
+          : updatedEscalation.profiles
+        const course = Array.isArray(updatedEscalation.courses)
+          ? updatedEscalation.courses[0]
+          : updatedEscalation.courses
 
-      const context: EscalationContext = {
-        studentName: studentProfile?.name || undefined,
-        category: updatedEscalation.category || undefined,
-        courseName: course?.name || undefined,
+        const context: EscalationContext = {
+          studentName: studentProfile?.name || undefined,
+          category: updatedEscalation.category || undefined,
+          courseName: course?.name || undefined,
+        }
+
+        // Trigger video generation asynchronously (non-blocking)
+        generateVideoAsync(updatedEscalation.id, response, context).catch(error => {
+          console.error(`[Escalations API] Failed to trigger video generation:`, error)
+          // Don't fail the request if video generation fails
+        })
+      } catch (videoError) {
+        // Log but don't fail the request if video context setup fails
+        console.error(`[Escalations API] Error setting up video generation context:`, videoError)
       }
-
-      // Trigger video generation asynchronously (non-blocking)
-      generateVideoAsync(updatedEscalation.id, response, context).catch(error => {
-        console.error(`[Escalations API] Failed to trigger video generation:`, error)
-        // Don't fail the request if video generation fails
-      })
     }
 
     const duration = Date.now() - startTime

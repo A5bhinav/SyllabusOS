@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getPulseReport } from '@/lib/api/pulse'
@@ -71,24 +71,21 @@ export function PulseReport() {
     avgResponseTime: 0,
   }
 
-  // Memoize chart data to prevent recalculation on every render
-  // Depend on pulseData directly (stable reference) instead of nested objects to avoid reference equality issues
-  const lineChartData = useMemo(() => {
-    return pulseData.dailyTrends?.map((trend) => ({
-      date: format(new Date(trend.date), 'MMM d'),
-      fullDate: trend.date,
-      queries: trend.count,
-    })) || []
-  }, [pulseData])
+  // Chart data - removed useMemo to avoid infinite re-render loops
+  // The computation is cheap (small arrays), and memoization was causing React error #310
+  const lineChartData = pulseData.dailyTrends?.map((trend) => ({
+    date: format(new Date(trend.date), 'MMM d'),
+    fullDate: trend.date,
+    queries: trend.count,
+  })) || []
 
-  const pieChartData = useMemo(() => {
-    if (!pulseData.queryDistribution) return []
-    return [
-      { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
-      { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
-      { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
-    ].filter((item) => item.value > 0)
-  }, [pulseData])
+  const pieChartData = pulseData.queryDistribution
+    ? [
+        { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
+        { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
+        { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
+      ].filter((item) => item.value > 0)
+    : []
 
   return (
     <Card className="overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-purple-500/20">

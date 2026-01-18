@@ -183,8 +183,8 @@ export function PulseReport() {
                   </div>
                 ) : (
                   <div className="w-full max-w-full mt-4">
-                    <div className="h-[300px] min-w-0">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] min-h-[300px] min-w-0 w-full">
+                      <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                         <PieChart margin={{ top: 10, right: 20, bottom: 60, left: 20 }}>
                         <Pie
                           data={pieChartData}
@@ -280,8 +280,8 @@ export function PulseReport() {
                   </div>
                 ) : (
                   <div className="w-full max-w-full overflow-hidden">
-                    <div className="h-[250px] min-w-0">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[250px] min-h-[250px] min-w-0 w-full">
+                      <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                         <LineChart 
                           data={lineChartData}
                           margin={{ top: 10, right: 20, left: 0, bottom: 60 }}

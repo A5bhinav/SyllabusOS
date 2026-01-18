@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { BookOpen, CheckCircle, PlusCircle, XCircle, BarChart3, TrendingUp, TrendingDown, ThumbsUp, ThumbsDown, Star, ExternalLink } from 'lucide-react'
+import { BookOpen, CheckCircle, PlusCircle, XCircle, TrendingUp, TrendingDown, ThumbsUp, ThumbsDown, Star, ExternalLink } from 'lucide-react'
 import type { CourseFeedback } from '@/app/api/courses/feedback/[courseCode]/route'
 import Link from 'next/link'
 import type { Course } from '@/types/api'
@@ -187,9 +187,8 @@ export default function BrowseCoursesPage() {
       return
     }
     
-    // Navigate to course detail page using slug (e.g., /student/courses/cmps-101)
-    const slug = getCourseSlug(course)
-    router.push(`/student/courses/${slug}`)
+    // Navigate to enroll page which shows feedback and enrollment form
+    router.push(`/student/enroll/${course.id}`)
   }
 
   // Extract course code from course name (e.g., "CSE 101" from "CSE 101 - Introduction to Data Structures")
@@ -215,8 +214,7 @@ export default function BrowseCoursesPage() {
 
       try {
         setLoadingFeedback(true)
-        const url = `/api/courses/feedback/${encodeURIComponent(courseCode)}`
-        console.log('Loading feedback for course:', courseCode, 'URL:', url)
+        const url = `/api/courses/${encodeURIComponent(courseCode)}/feedback`
         const response = await fetch(url)
         
         if (response.ok) {
@@ -366,40 +364,25 @@ export default function BrowseCoursesPage() {
                     {course.professorEmail}
                   </p>
                 )}
-                <div className="flex flex-col gap-2">
-                  {getCourseCode(course.name) && (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      asChild
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Link href={`/student/browse/${encodeURIComponent(getCourseCode(course.name)!)}/feedback`}>
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        View Course Feedback
-                      </Link>
-                    </Button>
-                  )}
-                  {course.isEnrolled ? (
-                    <Button variant="default" className="w-full" asChild onClick={(e) => e.stopPropagation()}>
-                      <Link href={`/student/chat?courseId=${course.id}`}>
-                        Open Chat
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCourseClick(course)
-                      }}
-                    >
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      Enroll in Course
-                    </Button>
-                  )}
-                </div>
+                {course.isEnrolled ? (
+                  <Button variant="default" className="w-full" asChild onClick={(e) => e.stopPropagation()}>
+                    <Link href={`/student/chat?courseId=${course.id}`}>
+                      Open Chat
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCourseClick(course)
+                    }}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Enroll in Course
+                  </Button>
+                )}
               </CardContent>
             </Card>
             ))}

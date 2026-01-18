@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const courseId = searchParams.get('courseId')
     const status = searchParams.get('status') as 'pending' | 'resolved' | null
 
-    // Build query
+    // Build query - only select fields that exist (video fields may not exist)
     let query = supabase
       .from('escalations')
       .select(`
@@ -69,9 +69,6 @@ export async function GET(request: NextRequest) {
         response,
         responded_at,
         responded_by,
-        video_url,
-        video_generated_at,
-        video_generation_status,
         profiles!escalations_student_id_fkey (
           name,
           email
@@ -133,12 +130,13 @@ export async function GET(request: NextRequest) {
       studentEmail: e.profiles?.email || null,
       query: e.query,
       status: e.status,
-      category: e.category,
+      category: e.category || null,
       createdAt: e.created_at,
       resolvedAt: e.resolved_at || null,
       response: e.response || null,
       respondedAt: e.responded_at || null,
       respondedBy: e.responded_by || null,
+      // Video fields may not exist in database
       videoUrl: e.video_url || null,
       videoGeneratedAt: e.video_generated_at || null,
       videoGenerationStatus: e.video_generation_status || null,

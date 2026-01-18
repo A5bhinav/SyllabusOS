@@ -79,7 +79,8 @@ export function StudentNav() {
     async function checkEscalationResponses() {
       try {
         const { getEscalations } = await import('@/lib/api/escalations')
-        const escalations = await getEscalations()
+        const data = await getEscalations()
+        const escalations = data.escalations || []
         
         // Get viewed responses from localStorage
         const stored = localStorage.getItem('escalation_viewed_responses')

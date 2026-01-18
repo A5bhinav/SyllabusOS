@@ -56,8 +56,10 @@ export function StudentEscalations() {
       setLoading(true)
       setError(null)
       const data = await getEscalations()
+      // Get escalations array from response
+      const escalationsList = data.escalations || []
       // Sort: resolved first, then pending. Within each group, sort by created date (newest first)
-      const sorted = data.sort((a, b) => {
+      const sorted = escalationsList.sort((a, b) => {
         // Resolved comes before pending
         if (a.status === 'resolved' && b.status === 'pending') return -1
         if (a.status === 'pending' && b.status === 'resolved') return 1

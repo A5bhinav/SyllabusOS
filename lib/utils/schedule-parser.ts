@@ -1,5 +1,5 @@
 import { parse } from 'csv-parse/sync'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { ScheduleEntry } from '../../types/api'
 
 export interface ParsedScheduleResult {
@@ -104,25 +104,46 @@ export function parseCSVSchedule(
 /**
  * Parse Excel schedule file
  */
-export function parseExcelSchedule(
+export async function parseExcelSchedule(
   excelBuffer: Buffer,
   fileName: string
-): ParsedScheduleResult {
+): Promise<ParsedScheduleResult> {
   const errors: string[] = []
   const entries: ScheduleEntry[] = []
   
   try {
-    const workbook = XLSX.read(excelBuffer, { type: 'buffer' })
+    const workbook = new ExcelJS.Workbook()
+    // ExcelJS accepts Buffer, ArrayBuffer, or Uint8Array
+    // Use type assertion to work around TypeScript strict typing
+    await workbook.xlsx.load(excelBuffer as any)
     
     // Get the first sheet
-    const sheetName = workbook.SheetNames[0]
-    if (!sheetName) {
+    const worksheet = workbook.worksheets[0]
+    if (!worksheet) {
       errors.push('Excel file has no sheets')
       return { entries, errors }
     }
     
-    const worksheet = workbook.Sheets[sheetName]
-    const data = XLSX.utils.sheet_to_json(worksheet, { raw: false }) as Record<string, any>[]
+    // Convert worksheet to JSON array
+    const data: Record<string, any>[] = []
+    const headers: string[] = []
+    
+    // Get headers from first row
+    worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      headers[colNumber - 1] = cell.value ? String(cell.value) : ''
+    })
+    
+    // Get data rows
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return // Skip header row
+      
+      const record: Record<string, any> = {}
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const header = headers[colNumber - 1] || ''
+        record[header] = cell.value ? String(cell.value) : ''
+      })
+      data.push(record)
+    })
     
     for (const record of data) {
       try {
@@ -211,7 +232,7 @@ export async function parseScheduleFile(
     const csvContent = buffer.toString('utf-8')
     return parseCSVSchedule(csvContent, file.name)
   } else {
-    return parseExcelSchedule(buffer, file.name)
+    return await parseExcelSchedule(buffer, file.name)
   }
 }
 

@@ -224,11 +224,11 @@ export function PulseReport() {
                               maxWidth: '200px',
                               wordWrap: 'break-word',
                             }}
-                            formatter={(value: number | undefined, name: string) => [
+                            formatter={(value: number | undefined, name: string | undefined) => [
                               `${value ?? 0} ${value === 1 ? 'query' : 'queries'}`,
                               name === 'Escalated' 
                                 ? 'Needs Professor Review' 
-                                : name
+                                : name || ''
                             ]}
                             labelStyle={{ 
                               fontWeight: 600, 

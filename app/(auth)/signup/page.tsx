@@ -188,40 +188,40 @@ export default function SignupPage() {
           <CardTitle className="text-3xl font-bold">Create your account</CardTitle>
           <CardDescription className="text-base">
             Get started with SyllabusOS in seconds
-          </CardDescription>
-        </CardHeader>
+        </CardDescription>
+      </CardHeader>
         <CardContent className="space-y-5">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
+          <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
                 Full name
               </Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                disabled={loading}
+            <Input
+              id="name"
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              disabled={loading}
                 className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
+            />
+          </div>
+          <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">
                 Email address
               </Label>
-              <Input
-                id="email"
-                type="email"
+            <Input
+              id="email"
+              type="email"
                 placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
                 className="h-11"
-              />
-            </div>
+            />
+          </div>
             <div className="space-y-3">
               <Label className="text-sm font-medium">I am a</Label>
               <div className="grid grid-cols-2 gap-3">
@@ -251,40 +251,40 @@ export default function SignupPage() {
                   <div className="text-sm font-medium mb-1">Professor</div>
                   <div className="text-xs text-muted-foreground">Manage courses & students</div>
                 </button>
-              </div>
             </div>
-            <div className="space-y-2">
+          </div>
+          <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">
                 Password
               </Label>
-              <Input
-                id="password"
-                type="password"
+            <Input
+              id="password"
+              type="password"
                 placeholder="Create a password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
                 className="h-11"
-              />
+            />
               <p className="text-xs text-muted-foreground">At least 6 characters</p>
-            </div>
-            <div className="space-y-2">
+          </div>
+          <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-sm font-medium">
                 Confirm password
               </Label>
-              <Input
-                id="confirmPassword"
-                type="password"
+            <Input
+              id="confirmPassword"
+              type="password"
                 placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={loading}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={loading}
                 className="h-11"
-              />
-            </div>
-            {error && (
+            />
+          </div>
+          {error && (
               <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start gap-2">
                 <svg
                   className="w-4 h-4 mt-0.5 flex-shrink-0"
@@ -300,23 +300,23 @@ export default function SignupPage() {
                   />
                 </svg>
                 <span>{error}</span>
-              </div>
-            )}
+            </div>
+          )}
             <Button 
               type="submit" 
               className="w-full h-11 text-base font-medium shadow-sm hover:shadow-md transition-shadow" 
               disabled={loading}
             >
-              {loading ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  Creating account...
-                </>
-              ) : (
+            {loading ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Creating account...
+              </>
+            ) : (
                 'Create account'
-              )}
-            </Button>
-          </form>
+            )}
+          </Button>
+        </form>
           <div className="relative py-4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t"></div>
@@ -331,10 +331,10 @@ export default function SignupPage() {
               className="text-sm font-medium text-primary hover:underline"
             >
               Sign in to your account →
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
     </div>
   );
 }

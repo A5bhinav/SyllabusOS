@@ -168,19 +168,19 @@ export default function StudentHomePage() {
             <h1 className="text-4xl font-bold tracking-tight">My Classes</h1>
             <p className="text-lg text-muted-foreground">
               Access your course materials and chat with your AI course assistant
-            </p>
-          </div>
+        </p>
+      </div>
 
-          {/* Announcements Section - Only show if student is enrolled in courses */}
-          {courses.length > 0 && (
+      {/* Announcements Section - Only show if student is enrolled in courses */}
+      {courses.length > 0 && (
             <div className="mb-10">
-              <Announcements showOnlyLatest={true} />
-            </div>
-          )}
+          <Announcements showOnlyLatest={true} />
+        </div>
+      )}
 
-          {error && (
+      {error && (
             <Card className="mb-6 border-destructive/50 bg-destructive/5">
-              <CardContent className="pt-6">
+          <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
                   <svg
                     className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0"
@@ -195,13 +195,13 @@ export default function StudentHomePage() {
                       d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive">{error}</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+          </CardContent>
+        </Card>
+      )}
 
-          {courses.length === 0 ? (
+      {courses.length === 0 ? (
             <Card className="border-2 border-dashed border-muted-foreground/25 bg-card/50">
               <CardContent className="flex flex-col items-center justify-center py-20 px-4">
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
@@ -210,26 +210,26 @@ export default function StudentHomePage() {
                 <h2 className="text-2xl font-semibold mb-3">No classes yet</h2>
                 <p className="text-muted-foreground text-center mb-8 max-w-md leading-relaxed">
                   You&apos;re not enrolled in any classes yet. Browse available courses to get started, 
-                  or contact your professor to be added to a course.
-                </p>
+              or contact your professor to be added to a course.
+            </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button asChild size="lg" className="shadow-sm hover:shadow-md transition-shadow">
-                    <Link href="/student/browse">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Browse Courses
-                    </Link>
-                  </Button>
+                <Link href="/student/browse">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Browse Courses
+                </Link>
+              </Button>
                   <Button asChild variant="outline" size="lg">
                     <Link href="/student/chat">
                       <MessageSquare className="h-4 w-4 mr-2" />
                       Go to Chat
                     </Link>
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
               {/* Courses Header */}
               <div className="mb-6 flex items-center justify-between">
                 <div>
@@ -239,47 +239,47 @@ export default function StudentHomePage() {
                   </p>
                 </div>
                 <Button asChild variant="outline" size="lg">
-                  <Link href="/student/browse">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Class
-                  </Link>
-                </Button>
-              </div>
+              <Link href="/student/browse">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Class
+              </Link>
+            </Button>
+          </div>
 
               {/* Courses Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map((course) => (
-                  <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => (
+              <Link key={course.id} href={`/student/chat?courseId=${course.id}`}>
                     <Card className="group hover:shadow-xl transition-all duration-200 cursor-pointer h-full flex flex-col border-2 hover:border-primary/50">
                       <CardHeader className="pb-4">
                         <div className="w-14 h-14 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex items-center justify-center mb-4">
                           <BookOpen className="h-7 w-7 text-primary" />
-                        </div>
+                      </div>
                         <CardTitle className="text-xl mb-2 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
                           {course.name}
                         </CardTitle>
                         <CardDescription className="text-base">
                           AI Course Assistant
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="pt-0 mt-auto">
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 mt-auto">
                         <Button 
                           variant="ghost" 
                           className="w-full justify-start group-hover:bg-primary/5 transition-colors" 
                           asChild
                         >
-                          <div>
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            Open Chat
-                          </div>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
+                      <div>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Open Chat
+                      </div>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
         </div>
       </div>
     </>

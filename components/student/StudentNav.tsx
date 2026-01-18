@@ -13,7 +13,9 @@ import {
   LogOut,
   Menu,
   X,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  LayoutDashboard
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +25,7 @@ export function StudentNav() {
   const [signingOut, setSigningOut] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hasEnrollments, setHasEnrollments] = useState<boolean | null>(null)
+  const [responsesCount, setResponsesCount] = useState(0)
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -44,7 +47,7 @@ export function StudentNav() {
     }
   }
 
-  // Check enrollments on mount
+  // Check enrollments and escalation responses on mount
   useEffect(() => {
     async function checkEnrollments() {
       try {
@@ -73,8 +76,88 @@ export function StudentNav() {
       }
     }
 
+    async function checkEscalationResponses() {
+      try {
+        const { getEscalations } = await import('@/lib/api/escalations')
+        const escalations = await getEscalations()
+        
+        // Get viewed responses from localStorage
+        const stored = localStorage.getItem('escalation_viewed_responses')
+        let viewedSet: Set<string>
+        try {
+          viewedSet = stored ? new Set(JSON.parse(stored) as string[]) : new Set<string>()
+        } catch (parseErr) {
+          // If localStorage data is corrupted, reset it
+          viewedSet = new Set<string>()
+        }
+        
+        // Only count responses that haven't been viewed
+        const unviewedResponses = escalations.filter(e => 
+          e && e.response && 
+          e.status === 'resolved' && 
+          e.id && 
+          !viewedSet.has(e.id)
+        ).length
+        
+        // Only update if count actually changed
+        setResponsesCount(prevCount => {
+          if (prevCount !== unviewedResponses) {
+            return unviewedResponses
+          }
+          return prevCount
+        })
+      } catch (err) {
+        // Silently fail - not critical
+        console.error('Error checking escalation responses:', err)
+      }
+    }
+
+    // Listen for escalation updates from the escalations page
+    function handleEscalationsUpdated(event: CustomEvent) {
+      try {
+        const { escalations: updatedEscalations, viewedResponses: viewedSet } = event.detail
+        if (updatedEscalations && Array.isArray(updatedEscalations) && viewedSet) {
+          // Ensure viewedSet is a Set object
+          const viewedSetObj = viewedSet instanceof Set ? viewedSet : new Set(viewedSet)
+          
+          const unviewedResponses = updatedEscalations.filter((e: any) => 
+            e && e.response && 
+            e.status === 'resolved' && 
+            e.id && 
+            !viewedSetObj.has(e.id)
+          ).length
+          
+          // Only update if the count actually changed to prevent unnecessary re-renders
+          setResponsesCount(prevCount => {
+            if (prevCount !== unviewedResponses) {
+              return unviewedResponses
+            }
+            return prevCount
+          })
+        }
+      } catch (err) {
+        console.error('Error handling escalations update:', err)
+      }
+    }
+
     checkEnrollments()
-  }, [])
+    checkEscalationResponses()
+    
+    // Listen for updates from escalations page
+    window.addEventListener('escalations-updated', handleEscalationsUpdated as EventListener)
+    
+    // Poll for new responses every 30 seconds when on escalations page
+    const interval = setInterval(() => {
+      if (pathname === '/student/escalations') {
+        checkEscalationResponses()
+      }
+    }, 30000)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('escalations-updated', handleEscalationsUpdated as EventListener)
+    }
+  }, [pathname])
 
   const baseNavItems = [
     {
@@ -84,10 +167,24 @@ export function StudentNav() {
       active: pathname === '/student' || pathname.startsWith('/student/chat'),
     },
     {
+      label: 'Dashboard',
+      href: '/student/dashboard',
+      icon: LayoutDashboard,
+      active: pathname === '/student/dashboard',
+      requiresEnrollment: true,
+    },
+    {
       label: 'Browse Courses',
       href: '/student/browse',
       icon: Search,
       active: pathname === '/student/browse',
+    },
+    {
+      label: 'Schedule',
+      href: '/student/schedule',
+      icon: Calendar,
+      active: pathname === '/student/schedule',
+      requiresEnrollment: true,
     },
     {
       label: 'Announcements',
@@ -105,9 +202,12 @@ export function StudentNav() {
   ]
 
   // Filter nav items based on enrollments
+  // Show all items while loading (hasEnrollments === null), only filter once we know enrollment status
   const navItems = baseNavItems.filter(item => {
     if (item.requiresEnrollment) {
-      return hasEnrollments === true
+      // If we haven't checked enrollments yet (null), show the item
+      // Once checked, only show if enrolled
+      return hasEnrollments === null || hasEnrollments === true
     }
     return true
   })
@@ -131,17 +231,23 @@ export function StudentNav() {
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon
+              const showBadge = item.href === '/student/escalations' && responsesCount > 0
               return (
                 <Link key={item.href} href={item.href}>
                   <Button
                     variant={item.active ? 'secondary' : 'ghost'}
                     className={cn(
-                      'flex items-center gap-2',
+                      'flex items-center gap-2 relative',
                       item.active && 'bg-secondary'
                     )}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
+                    {showBadge && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
+                        {responsesCount}
+                      </span>
+                    )}
                   </Button>
                 </Link>
               )
@@ -182,17 +288,23 @@ export function StudentNav() {
           <div className="md:hidden border-t py-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
+              const showBadge = item.href === '/student/escalations' && responsesCount > 0
               return (
                 <Link key={item.href} href={item.href}>
                   <Button
                     variant={item.active ? 'secondary' : 'ghost'}
                     className={cn(
-                      'w-full justify-start gap-2',
+                      'w-full justify-start gap-2 relative',
                       item.active && 'bg-secondary'
                     )}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
+                    {showBadge && (
+                      <span className="ml-auto h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
+                        {responsesCount}
+                      </span>
+                    )}
                   </Button>
                 </Link>
               )

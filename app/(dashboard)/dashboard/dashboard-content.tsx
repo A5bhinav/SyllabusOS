@@ -95,47 +95,47 @@ export default function DashboardContent() {
             <h1 className="text-4xl font-bold tracking-tight">Professor Dashboard</h1>
             <p className="text-lg text-muted-foreground">
               Manage your courses and view student activity
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              onClick={handleTriggerConductor}
-              disabled={conductorLoading}
-              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-              size="lg"
-            >
-              {conductorLoading ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Run Conductor
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-              size="lg"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-              size="lg"
-            >
-              <LogOut className="h-4 w-4" />
-              {signingOut ? 'Signing out...' : 'Sign Out'}
-            </Button>
-          </div>
+          </p>
         </div>
+          <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={handleTriggerConductor}
+            disabled={conductorLoading}
+              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+              size="lg"
+          >
+            {conductorLoading ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            Run Conductor
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={refreshing}
+              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+              size="lg"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            disabled={signingOut}
+              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+              size="lg"
+          >
+            <LogOut className="h-4 w-4" />
+            {signingOut ? 'Signing out...' : 'Sign Out'}
+          </Button>
+        </div>
+      </div>
 
-        {conductorError && (
+      {conductorError && (
           <div className="mb-6 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive flex items-start gap-2">
             <svg
               className="w-5 h-5 mt-0.5 flex-shrink-0"
@@ -151,20 +151,20 @@ export default function DashboardContent() {
               />
             </svg>
             <span>{conductorError}</span>
-          </div>
-        )}
+        </div>
+      )}
 
         {/* Main Dashboard Grid */}
         <div className="grid gap-6 md:grid-cols-3 mb-6">
-          <AnnouncementDrafts />
-          <EscalationQueue />
-          <PulseReport />
-        </div>
+        <AnnouncementDrafts />
+        <EscalationQueue />
+        <PulseReport />
+      </div>
 
         {/* Secondary Dashboard Grid */}
         <div className="grid gap-6 md:grid-cols-2">
-          <CourseManagement />
-          <EnrolledStudents />
+        <CourseManagement />
+        <EnrolledStudents />
         </div>
       </div>
     </div>

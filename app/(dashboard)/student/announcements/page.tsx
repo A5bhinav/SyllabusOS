@@ -142,18 +142,18 @@ export default function AnnouncementsPage() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Megaphone className="h-5 w-5 text-primary" />
                   </div>
-                  Announcements
-                </CardTitle>
+                Announcements
+              </CardTitle>
                 <CardDescription className="text-base">
                   Important updates from your professors
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
+            </CardHeader>
+            <CardContent>
                 <div className="flex items-center justify-center py-16">
-                  <LoadingSpinner size="lg" />
-                </div>
-              </CardContent>
-            </Card>
+                <LoadingSpinner size="lg" />
+              </div>
+            </CardContent>
+          </Card>
           </div>
         </div>
       </>
@@ -172,37 +172,37 @@ export default function AnnouncementsPage() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Megaphone className="h-5 w-5 text-primary" />
                   </div>
-                  Announcements
-                </CardTitle>
+                Announcements
+              </CardTitle>
                 <CardDescription className="text-base">
                   Important updates from your professors
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
+            </CardHeader>
+            <CardContent>
                 <div className="text-center py-16">
                   <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
                     <Megaphone className="h-10 w-10 text-muted-foreground" />
                   </div>
                   <h3 className="text-xl font-semibold mb-3">No Enrolled Courses</h3>
                   <p className="text-base text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
-                    You need to be enrolled in at least one course to view announcements.
-                  </p>
+                  You need to be enrolled in at least one course to view announcements.
+                </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button asChild variant="outline" size="lg">
-                      <Link href="/student/browse">
-                        Browse Courses
-                      </Link>
-                    </Button>
+                    <Link href="/student/browse">
+                      Browse Courses
+                    </Link>
+                  </Button>
                     <Button asChild size="lg" className="shadow-sm hover:shadow-md transition-shadow">
-                      <Link href="/student">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to My Classes
-                      </Link>
-                    </Button>
-                  </div>
+                    <Link href="/student">
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to My Classes
+                    </Link>
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
           </div>
         </div>
       </>
@@ -222,38 +222,38 @@ export default function AnnouncementsPage() {
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <Megaphone className="h-5 w-5 text-primary" />
                     </div>
-                    Announcements
-                  </CardTitle>
+                Announcements
+              </CardTitle>
                   <CardDescription className="text-base">
                     Important updates from your professors
                   </CardDescription>
-                </div>
-                {announcements.length > 0 && (
+            </div>
+            {announcements.length > 0 && (
                   <div className="flex gap-2 flex-shrink-0">
-                    <Button
-                      variant={sortBy === 'course' ? 'default' : 'outline'}
+                <Button
+                  variant={sortBy === 'course' ? 'default' : 'outline'}
                       size="default"
-                      onClick={() => setSortBy('course')}
+                  onClick={() => setSortBy('course')}
                       className="shadow-sm"
-                    >
-                      <BookOpen className="h-4 w-4 mr-2" />
-                      By Course
-                    </Button>
-                    <Button
-                      variant={sortBy === 'date' ? 'default' : 'outline'}
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  By Course
+                </Button>
+                <Button
+                  variant={sortBy === 'date' ? 'default' : 'outline'}
                       size="default"
-                      onClick={() => setSortBy('date')}
+                  onClick={() => setSortBy('date')}
                       className="shadow-sm"
-                    >
-                      <Calendar className="h-4 w-4 mr-2" />
-                      By Date
-                    </Button>
-                  </div>
-                )}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  By Date
+                </Button>
               </div>
-            </CardHeader>
+            )}
+          </div>
+        </CardHeader>
             <CardContent className="space-y-6">
-              {error && (
+          {error && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive flex items-start gap-2">
                   <svg
                     className="w-5 h-5 mt-0.5 flex-shrink-0"
@@ -269,20 +269,20 @@ export default function AnnouncementsPage() {
                     />
                   </svg>
                   <span>{error}</span>
-                </div>
-              )}
+            </div>
+          )}
 
-              {announcements.length === 0 ? (
+          {announcements.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
                     <Megaphone className="h-10 w-10 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">No announcements yet</h3>
-                  <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                     Your professors haven&apos;t published any announcements yet.
-                  </p>
-                </div>
-              ) : (
+              </p>
+            </div>
+          ) : (
                 <div className="space-y-8">
               {(() => {
                 // Sort and group announcements
@@ -395,10 +395,10 @@ export default function AnnouncementsPage() {
                   ))
                 }
               })()}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
         </div>
       </div>
     </>

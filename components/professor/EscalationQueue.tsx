@@ -155,9 +155,13 @@ export function EscalationQueue() {
       setPollingVideo(prev => ({ ...prev, [id]: true }))
       
       await loadEscalations()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting response:', err)
-      setError('Failed to submit response')
+      // Try to extract a meaningful error message
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to submit response'
+      setError(errorMessage)
+      // Clear error after 5 seconds
+      setTimeout(() => setError(null), 5000)
     } finally {
       setSubmittingResponse(null)
     }

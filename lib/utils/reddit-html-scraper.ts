@@ -62,7 +62,7 @@ export async function scrapeRedditHTML(
       'div.Post',
     ]
 
-    let $posts: cheerio.Cheerio<any> | null = null
+    let $posts: ReturnType<typeof $> | null = null
     for (const selector of postSelectors) {
       $posts = $(selector)
       if ($posts.length > 0) {
@@ -254,7 +254,7 @@ async function scrapeRedditHTMLFallback(
 
     // Same selectors as main scraper
     const postSelectors = ['shreddit-post', 'article[data-testid="post-container"]', 'div.Post']
-    let $posts: cheerio.Cheerio<any> | null = null
+    let $posts: ReturnType<typeof $> | null = null
     for (const selector of postSelectors) {
       $posts = $(selector)
       if ($posts.length > 0) break

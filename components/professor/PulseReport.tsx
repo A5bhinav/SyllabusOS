@@ -72,23 +72,23 @@ export function PulseReport() {
   }
 
   // Memoize chart data to prevent recalculation on every render
+  // Depend on pulseData directly (stable reference) instead of nested objects to avoid reference equality issues
   const lineChartData = useMemo(() => {
     return pulseData.dailyTrends?.map((trend) => ({
       date: format(new Date(trend.date), 'MMM d'),
       fullDate: trend.date,
       queries: trend.count,
     })) || []
-  }, [pulseData.dailyTrends])
+  }, [pulseData])
 
   const pieChartData = useMemo(() => {
-    return pulseData.queryDistribution
-      ? [
-          { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
-          { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
-          { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
-        ].filter((item) => item.value > 0)
-      : []
-  }, [pulseData.queryDistribution])
+    if (!pulseData.queryDistribution) return []
+    return [
+      { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
+      { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
+      { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
+    ].filter((item) => item.value > 0)
+  }, [pulseData])
 
   return (
     <Card className="overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-purple-500/20">

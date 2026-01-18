@@ -9,10 +9,10 @@ import type { Course } from '@/types/api'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const courseId = params.courseId
+    const { courseId } = await params
 
     // Check if it's a fake course first (for demo purposes)
     const fakeCourses: { [key: string]: Course } = {

@@ -18,10 +18,10 @@ interface RedditPost {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const courseId = params.courseId
+    const { courseId } = await params
     let courseName: string
 
     // Check if it's a fake course first (for demo purposes)

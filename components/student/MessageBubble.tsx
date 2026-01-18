@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -25,13 +25,13 @@ interface MessageBubbleProps {
   message: Message
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubbleComponent({ message }: MessageBubbleProps) {
   const { toast } = useToast()
   const [copied, setCopied] = useState(false)
   const isUser = message.role === 'user'
   const isEscalated = message.agent === 'ESCALATE' || message.escalated
 
-  async function handleCopy() {
+  const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(message.text)
       setCopied(true)
@@ -48,7 +48,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         variant: 'destructive',
       })
     }
-  }
+  }, [message.text, toast])
 
   return (
     <div
@@ -138,3 +138,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     </div>
   )
 }
+
+// Memoize MessageBubble to prevent unnecessary re-renders
+export const MessageBubble = memo(MessageBubbleComponent)

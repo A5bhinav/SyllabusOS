@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
+import { getProfessorCourses } from '@/lib/utils/course-cache'
 
 /**
  * GET /api/chat/history
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const courseId = searchParams.get('courseId')
     const userId = searchParams.get('userId') || user.id
-    const limit = parseInt(searchParams.get('limit') || '50', 10)
+    const limit = parseInt(searchParams.get('limit') || '30', 10) // Reduced from 50 to 30 for better performance
 
     if (!courseId) {
       return NextResponse.json(
@@ -75,15 +76,10 @@ export async function GET(request: NextRequest) {
         )
       }
     } else if (profile?.role === 'professor') {
-      // Professors can view any student's chat history for their courses
-      const { data: course } = await supabase
-        .from('courses')
-        .select('id')
-        .eq('id', courseId)
-        .eq('professor_id', user.id)
-        .single()
+      // Professors can view any student's chat history for their courses (use cached query)
+      const { singleCourse } = await getProfessorCourses(supabase, user.id, courseId)
 
-      if (!course) {
+      if (!singleCourse) {
         return NextResponse.json(
           { error: 'Course not found or access denied' },
           { status: 403 }

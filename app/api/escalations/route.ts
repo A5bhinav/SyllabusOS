@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
+import { getProfessorCourses } from '@/lib/utils/course-cache'
 import type { Escalation } from '@/types/api'
 
 /**
@@ -75,39 +76,25 @@ export async function GET(request: NextRequest) {
 
     // Apply filters based on role
     if (profile.role === 'professor') {
-      // Professors see escalations for their courses
-      if (courseId) {
-        // Verify the course belongs to this professor
-        const { data: course } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('id', courseId)
-          .eq('professor_id', user.id)
-          .single()
+      // Professors see escalations for their courses (use cached query)
+      const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
-        if (course) {
-          query = query.eq('course_id', courseId)
-        } else {
-          return NextResponse.json(
-            { error: 'Course not found or access denied' },
-            { status: 404 }
-          )
-        }
-      } else {
-        // Get all courses for this professor
-        const { data: courses } = await supabase
-          .from('courses')
-          .select('id')
-          .eq('professor_id', user.id)
-
-        if (courses && courses.length > 0) {
-          const courseIds = courses.map((c) => c.id)
-          query = query.in('course_id', courseIds)
-        } else {
-          // No courses, return empty array
-          return NextResponse.json([])
-        }
+      if (courseId && !singleCourse) {
+        return NextResponse.json(
+          { error: 'Course not found or access denied' },
+          { status: 404 }
+        )
       }
+
+      if (!courseIds || courseIds.length === 0) {
+        // No courses, return empty array
+        return NextResponse.json({
+          escalations: [],
+          patterns: undefined,
+        })
+      }
+
+      query = query.in('course_id', courseIds)
     } else {
       // Students see only their own escalations
       query = query.eq('student_id', user.id)
@@ -120,6 +107,11 @@ export async function GET(request: NextRequest) {
     if (status) {
       query = query.eq('status', status)
     }
+
+    // Add limit to prevent loading too many escalations at once (max 100)
+    // For pagination, add offset parameter later if needed
+    const limit = parseInt(searchParams.get('limit') || '100', 10)
+    query = query.limit(Math.min(limit, 100))
 
     const { data: escalations, error: escalationsError } = await query
 

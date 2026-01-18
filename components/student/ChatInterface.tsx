@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useOptimistic, useRef, useEffect, startTransition, useMemo } from 'react'
+import { useState, useOptimistic, useRef, useEffect, startTransition, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -50,10 +50,17 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
 
   // Load chat history on mount
   useEffect(() => {
+    let scrollTimeoutId: NodeJS.Timeout | null = null
+    let isMounted = true
+
     async function loadHistory() {
       try {
         setIsLoadingHistory(true)
-        const history = await getChatHistory(courseId, userId, 100)
+        // Load only recent messages initially for better performance (30 instead of 100)
+        const history = await getChatHistory(courseId, userId, 30)
+        
+        // Only update state if component is still mounted
+        if (!isMounted) return
         
         // Transform API messages to match Message type
         const transformedMessages: Message[] = history.messages.map((msg) => ({
@@ -70,7 +77,8 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         setMessages(transformedMessages)
         
         // Scroll to bottom after loading history
-        setTimeout(() => {
+        scrollTimeoutId = setTimeout(() => {
+          if (!isMounted) return
           const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement
           if (viewport && messagesEndRef.current) {
             viewport.scrollTop = viewport.scrollHeight
@@ -81,7 +89,9 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
         console.error('Error loading chat history:', err)
         // Don't show error, just start with empty messages
       } finally {
-        setIsLoadingHistory(false)
+        if (isMounted) {
+          setIsLoadingHistory(false)
+        }
       }
     }
 
@@ -90,6 +100,13 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
       loadHistory()
     } else {
       setIsLoadingHistory(false)
+    }
+
+    return () => {
+      isMounted = false
+      if (scrollTimeoutId) {
+        clearTimeout(scrollTimeoutId)
+      }
     }
   }, [courseId, userId, initialMessages.length])
 
@@ -143,7 +160,7 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     // 3. Not loading history
     if (messagesEndRef.current && isUserAtBottom && !userScrolledUpRef.current && !isLoadingHistory) {
       // Small delay to ensure DOM is updated
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         const viewport = viewportRef.current
         if (viewport) {
           const { scrollHeight, clientHeight } = viewport
@@ -159,10 +176,12 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
           }
         }
       }, 100)
+
+      return () => clearTimeout(timeoutId)
     }
   }, [optimisticMessages, isUserAtBottom, isLoadingHistory])
 
-  const handleSubmit = async (e: React.FormEvent, suggestedText?: string) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent, suggestedText?: string) => {
     e.preventDefault()
     const messageText = suggestedText || input.trim()
     
@@ -233,13 +252,22 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [input, isLoading, courseId, userId, addOptimisticMessage, setMessages])
 
   // Generate suggested follow-up questions based on the last assistant message
+  // Optimized: iterate backwards instead of creating reversed array
   const suggestedFollowUps = useMemo(() => {
     if (optimisticMessages.length === 0 || isLoading) return []
     
-    const lastAssistantMessage = [...optimisticMessages].reverse().find(msg => msg.role === 'assistant')
+    // Find last assistant message without creating reversed array
+    let lastAssistantMessage: Message | undefined
+    for (let i = optimisticMessages.length - 1; i >= 0; i--) {
+      if (optimisticMessages[i].role === 'assistant') {
+        lastAssistantMessage = optimisticMessages[i]
+        break
+      }
+    }
+    
     if (!lastAssistantMessage) return []
     
     const messageText = lastAssistantMessage.text.toLowerCase()
@@ -272,14 +300,14 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
     return suggestions.slice(0, 3) // Return max 3 suggestions
   }, [optimisticMessages, isLoading])
 
-  function handleSuggestedFollowUp(question: string) {
+  const handleSuggestedFollowUp = useCallback((question: string) => {
     // Create a synthetic event and call handleSubmit with the suggested text
     const syntheticEvent = {
       preventDefault: () => {},
     } as React.FormEvent
     
     handleSubmit(syntheticEvent, question)
-  }
+  }, [handleSubmit])
 
   return (
     <div className="flex flex-col h-[600px] bg-background overflow-hidden rounded-lg">

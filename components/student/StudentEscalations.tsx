@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -20,10 +20,10 @@ export function StudentEscalations() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [viewedResponses, setViewedResponses] = useState<Set<string>>(new Set())
 
-  // Filter escalations by status
-  const filteredEscalations = escalations.filter(escalation => {
-    return escalation.status === filterStatus
-  })
+  // Memoize filtered escalations to prevent recalculation on every render
+  const filteredEscalations = useMemo(() => {
+    return escalations.filter(escalation => escalation.status === filterStatus)
+  }, [escalations, filterStatus])
 
   // Calculate current escalation early (needed for useEffect dependency)
   const currentEscalation = filteredEscalations[currentIndex] || null
@@ -51,7 +51,7 @@ export function StudentEscalations() {
     setCurrentIndex(0)
   }, [filterStatus, filteredEscalations.length])
 
-  async function loadEscalations(viewedSet?: Set<string>) {
+  const loadEscalations = useCallback(async (viewedSet?: Set<string>) => {
     try {
       setLoading(true)
       setError(null)
@@ -59,7 +59,8 @@ export function StudentEscalations() {
       // Get escalations array from response
       const escalationsList = data.escalations || []
       // Sort: resolved first, then pending. Within each group, sort by created date (newest first)
-      const sorted = escalationsList.sort((a, b) => {
+      // Use toSorted to avoid mutating the original array (better for React)
+      const sorted = [...escalationsList].sort((a, b) => {
         // Resolved comes before pending
         if (a.status === 'resolved' && b.status === 'pending') return -1
         if (a.status === 'pending' && b.status === 'resolved') return 1
@@ -84,7 +85,7 @@ export function StudentEscalations() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Mark response as viewed when user sees it
   useEffect(() => {

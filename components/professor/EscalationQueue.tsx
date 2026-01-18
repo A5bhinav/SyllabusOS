@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,11 +22,7 @@ export function EscalationQueue() {
   const [loadingSuggestions, setLoadingSuggestions] = useState<Record<string, boolean>>({})
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    loadEscalations()
-  }, [])
-
-  async function loadEscalations() {
+  const loadEscalations = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -36,20 +32,19 @@ export function EscalationQueue() {
       // Filter for pending escalations
       const pending = escalationsList.filter(e => e.status === 'pending')
       setEscalations(pending)
-      // Store patterns if available (for future use in UI)
-      if (response.patterns && response.patterns.length > 0) {
-        // Patterns available: response.patterns
-        // Example: [{ category: 'Extension Request', count: 3 }]
-      }
     } catch (err) {
       console.error('Error loading escalations:', err)
       setError('Failed to load escalations')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  async function handleResolve(id: string) {
+  useEffect(() => {
+    loadEscalations()
+  }, [loadEscalations])
+
+  const handleResolve = useCallback(async (id: string) => {
     try {
       setResolvingId(id)
       await resolveEscalation(id)
@@ -60,9 +55,9 @@ export function EscalationQueue() {
     } finally {
       setResolvingId(null)
     }
-  }
+  }, [loadEscalations])
 
-  async function handleGetSuggestion(escalationId: string, query: string, category: string) {
+  const handleGetSuggestion = useCallback(async (escalationId: string, query: string, category: string) => {
     try {
       setLoadingSuggestions(prev => ({ ...prev, [escalationId]: true }))
       // Find the escalation to get courseId
@@ -97,9 +92,9 @@ export function EscalationQueue() {
         return next
       })
     }
-  }
+  }, [escalations])
 
-  async function handleSubmitResponse(id: string) {
+  const handleSubmitResponse = useCallback(async (id: string) => {
     const response = responseTexts[id]?.trim()
     if (!response) {
       return
@@ -131,7 +126,7 @@ export function EscalationQueue() {
     } finally {
       setSubmittingResponse(null)
     }
-  }
+  }, [responseTexts, loadEscalations])
 
   if (loading) {
     return (

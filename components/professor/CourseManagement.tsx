@@ -50,10 +50,17 @@ export function CourseManagement() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>My Courses</CardTitle>
-          <CardDescription>Manage your courses and share join codes</CardDescription>
+      <Card className="h-full flex flex-col border-2 hover:border-primary/20">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">My Courses</CardTitle>
+              <CardDescription className="mt-1">Manage your courses and share join codes</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -65,10 +72,17 @@ export function CourseManagement() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>My Courses</CardTitle>
-        <CardDescription>Manage your courses and share join codes</CardDescription>
+    <Card className="h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <BookOpen className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">My Courses</CardTitle>
+            <CardDescription className="mt-1">Manage your courses and share join codes</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {error && (
@@ -78,12 +92,14 @@ export function CourseManagement() {
         )}
 
         {courses.length === 0 ? (
-          <div className="text-center py-8">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground mb-4">
-              You haven't created any courses yet
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground font-medium mb-1">
+              No courses yet
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground max-w-sm">
               Upload course files to create your first course
             </p>
           </div>
@@ -92,7 +108,7 @@ export function CourseManagement() {
             {courses.map((course) => (
               <div
                 key={course.id}
-                className="rounded-lg border p-4 space-y-3"
+                className="rounded-lg border-2 p-4 space-y-3 hover:border-primary/30 hover:shadow-md transition-all duration-200 bg-card"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

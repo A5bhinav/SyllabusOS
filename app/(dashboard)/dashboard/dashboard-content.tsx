@@ -10,37 +10,17 @@ import { EscalationQueue } from '@/components/professor/EscalationQueue'
 import { PulseReport } from '@/components/professor/PulseReport'
 import { CourseManagement } from '@/components/professor/CourseManagement'
 import { EnrolledStudents } from '@/components/professor/EnrolledStudents'
+import { ProfessorNav } from '@/components/professor/ProfessorNav'
 import { triggerConductor } from '@/lib/api/conductor'
-import { LogOut, Play, RefreshCw } from 'lucide-react'
+import { Play, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export default function DashboardContent() {
   const router = useRouter()
   const { toast } = useToast()
-  const [signingOut, setSigningOut] = useState(false)
   const [conductorLoading, setConductorLoading] = useState(false)
   const [conductorError, setConductorError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-
-  const handleSignOut = async () => {
-    setSigningOut(true)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signOut()
-      
-      if (error) {
-        console.error('Error signing out:', error)
-      }
-      
-      router.push('/login')
-      router.refresh()
-    } catch (error) {
-      console.error('Error signing out:', error)
-      router.push('/login')
-    } finally {
-      setSigningOut(false)
-    }
-  }
 
   const handleTriggerConductor = async () => {
     try {
@@ -87,53 +67,45 @@ export default function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto py-8 px-4 max-w-7xl">
-        {/* Header Section */}
-        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight">Professor Dashboard</h1>
-            <p className="text-lg text-muted-foreground">
-              Manage your courses and view student activity
-            </p>
+    <>
+      <ProfessorNav />
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto py-8 px-4 max-w-7xl">
+          {/* Header Section */}
+          <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-lg text-muted-foreground">
+                Manage your courses and view student activity
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={handleTriggerConductor}
+                disabled={conductorLoading}
+                className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+                size="lg"
+              >
+                {conductorLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Run Conductor
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+                size="lg"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              onClick={handleTriggerConductor}
-              disabled={conductorLoading}
-              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-              size="lg"
-            >
-              {conductorLoading ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Run Conductor
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-              size="lg"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className="flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-              size="lg"
-            >
-              <LogOut className="h-4 w-4" />
-              {signingOut ? 'Signing out...' : 'Sign Out'}
-            </Button>
-          </div>
-        </div>
 
         {conductorError && (
           <div className="mb-6 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive flex items-start gap-2">
@@ -156,18 +128,29 @@ export default function DashboardContent() {
 
         {/* Main Dashboard Grid */}
         <div className="grid gap-6 md:grid-cols-3 mb-6">
-          <AnnouncementDrafts />
-          <EscalationQueue />
-          <PulseReport />
+          <div className="group">
+            <AnnouncementDrafts />
+          </div>
+          <div className="group">
+            <EscalationQueue />
+          </div>
+          <div className="group">
+            <PulseReport />
+          </div>
         </div>
 
         {/* Secondary Dashboard Grid */}
         <div className="grid gap-6 md:grid-cols-2">
-          <CourseManagement />
-          <EnrolledStudents />
+          <div className="group">
+            <CourseManagement />
+          </div>
+          <div className="group">
+            <EnrolledStudents />
+          </div>
         </div>
       </div>
     </div>
+    </>
   )
 }
 

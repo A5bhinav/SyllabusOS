@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getAnnouncements, updateAnnouncement } from '@/lib/api/announcements'
 import type { Announcement, UpdateAnnouncementRequest } from '@/types/api'
-import { Check, Edit2, X, Calendar } from 'lucide-react'
+import { Check, Edit2, X, Calendar, Megaphone } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export function AnnouncementDrafts() {
@@ -113,10 +113,17 @@ export function AnnouncementDrafts() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Announcement Drafts</CardTitle>
-          <CardDescription>Review and publish weekly announcements</CardDescription>
+      <Card className="h-full flex flex-col border-2 hover:border-primary/20">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Megaphone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Announcement Drafts</CardTitle>
+              <CardDescription className="mt-1">Review and publish weekly announcements</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -128,10 +135,17 @@ export function AnnouncementDrafts() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Announcement Drafts</CardTitle>
-        <CardDescription>Review and publish weekly announcements</CardDescription>
+    <Card className="h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+            <Megaphone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">Announcement Drafts</CardTitle>
+            <CardDescription className="mt-1">Review and publish weekly announcements</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {error && (
@@ -141,15 +155,23 @@ export function AnnouncementDrafts() {
         )}
 
         {announcements.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            No draft announcements. Run the Sunday Night Conductor to generate announcements.
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
+              <Megaphone className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <p className="text-sm text-muted-foreground font-medium mb-1">
+              No draft announcements
+            </p>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              Run the Sunday Night Conductor to generate announcements
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {announcements.map((announcement) => (
               <div
                 key={announcement.id}
-                className="rounded-lg border p-4 space-y-3"
+                className="rounded-lg border-2 p-4 space-y-3 hover:border-primary/30 hover:shadow-md transition-all duration-200 bg-card"
               >
                 {editingId === announcement.id ? (
                   <div className="space-y-3">

@@ -65,10 +65,17 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Enrolled Students</CardTitle>
-          <CardDescription>Students enrolled in your courses</CardDescription>
+      <Card className="h-full flex flex-col border-2 hover:border-green-500/20">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Enrolled Students</CardTitle>
+              <CardDescription className="mt-1">Students enrolled in your courses</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -80,10 +87,17 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Enrolled Students</CardTitle>
-        <CardDescription>Students enrolled in your courses</CardDescription>
+    <Card className="h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-green-500/20">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+            <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">Enrolled Students</CardTitle>
+            <CardDescription className="mt-1">Students enrolled in your courses</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {error && (
@@ -93,10 +107,15 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
         )}
 
         {students.length === 0 ? (
-          <div className="text-center py-8">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-4">
+              <Users className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <p className="text-sm text-muted-foreground font-medium mb-1">
               No students enrolled yet
+            </p>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              Students will appear here once they enroll using your join code
             </p>
           </div>
         ) : (
@@ -104,7 +123,7 @@ export function EnrolledStudents({ courseId }: { courseId?: string }) {
             {students.map((student) => (
               <div
                 key={student.id}
-                className="rounded-lg border p-4 space-y-2"
+                className="rounded-lg border-2 p-4 space-y-2 hover:border-green-500/30 hover:shadow-md transition-all duration-200 bg-card"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

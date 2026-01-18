@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { FileUpload } from '@/components/shared/FileUpload'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { LoadDemoButton } from '@/components/shared/LoadDemoButton'
+import { ProfessorNav } from '@/components/professor/ProfessorNav'
 import { uploadFiles } from '@/lib/api/upload'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
@@ -126,14 +127,17 @@ export default function OnboardingPage() {
   const canUpload = syllabusFile && scheduleFile && !loading
 
   return (
-    <div className="container mx-auto max-w-2xl py-8 px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Course Setup</CardTitle>
-          <CardDescription>
-            Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started, or try the demo course
-          </CardDescription>
-        </CardHeader>
+    <>
+      <ProfessorNav />
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto max-w-2xl py-8 px-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">Course Setup</CardTitle>
+              <CardDescription>
+                Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started, or try the demo course
+              </CardDescription>
+            </CardHeader>
         <CardContent className="space-y-6">
           <div className="border-b pb-6">
             <h3 className="text-lg font-semibold mb-2">Try Demo Course (UCSC CMPS 5J)</h3>
@@ -218,7 +222,9 @@ export default function OnboardingPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+        </div>
+      </div>
+    </>
   )
 }
 

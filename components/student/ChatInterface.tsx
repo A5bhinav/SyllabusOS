@@ -431,13 +431,19 @@ export function ChatInterface({ courseId, userId, initialMessages = [] }: ChatIn
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question about your course..."
+            placeholder={isLoading ? "AI is responding... You can type your next question..." : "Ask a question about your course..."}
             className="min-h-[56px] max-h-[200px] resize-none text-base"
-            disabled={isLoading}
+            autoFocus={false}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              // Allow typing always - only prevent submit on Enter when loading
+              if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                 e.preventDefault()
                 handleSubmit(e as any)
+              }
+              // Allow Shift+Enter to create new line
+              if (e.key === 'Enter' && e.shiftKey) {
+                // Let default behavior happen (new line)
+                return
               }
             }}
           />

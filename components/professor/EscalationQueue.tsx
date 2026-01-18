@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getEscalations, resolveEscalation, updateEscalationResponse } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { CheckCircle2, Clock, Mail, User, MessageSquare, Send, Sparkles } from 'lucide-react'
+import { CheckCircle2, Clock, Mail, User, MessageSquare, Send, Sparkles, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { getCategoryColor, type EscalationCategory } from '@/lib/utils/escalation-categorizer'
 
@@ -20,6 +20,7 @@ export function EscalationQueue() {
   const [submittingResponse, setSubmittingResponse] = useState<string | null>(null)
   const [suggestedResponses, setSuggestedResponses] = useState<Record<string, string>>({})
   const [loadingSuggestions, setLoadingSuggestions] = useState<Record<string, boolean>>({})
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     loadEscalations()
@@ -118,6 +119,11 @@ export function EscalationQueue() {
         delete next[id]
         return next
       })
+      setDismissedSuggestions(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       await loadEscalations()
     } catch (err) {
       console.error('Error submitting response:', err)
@@ -129,10 +135,17 @@ export function EscalationQueue() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Escalation Queue</CardTitle>
-          <CardDescription>View student escalations requiring your attention</CardDescription>
+      <Card className="h-full flex flex-col border-2 hover:border-orange-500/20">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Escalation Queue</CardTitle>
+              <CardDescription className="mt-1">View student escalations requiring your attention</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -144,10 +157,17 @@ export function EscalationQueue() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Escalation Queue</CardTitle>
-        <CardDescription>View student escalations requiring your attention</CardDescription>
+    <Card className="h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-orange-500/20">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+            <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">Escalation Queue</CardTitle>
+            <CardDescription className="mt-1">View student escalations requiring your attention</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {error && (
@@ -157,10 +177,15 @@ export function EscalationQueue() {
         )}
 
         {escalations.length === 0 ? (
-          <div className="text-center py-8">
-            <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              No pending escalations. All clear!
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <p className="text-sm text-muted-foreground font-medium mb-1">
+              No pending escalations
+            </p>
+            <p className="text-xs text-muted-foreground">
+              All clear! Check back later for new escalations
             </p>
           </div>
         ) : (
@@ -168,7 +193,7 @@ export function EscalationQueue() {
             {escalations.map((escalation) => (
               <div
                 key={escalation.id}
-                className="rounded-lg border p-4 space-y-3"
+                className="rounded-lg border-2 p-4 space-y-3 hover:border-orange-500/30 hover:shadow-md transition-all duration-200 bg-card"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 space-y-2">
@@ -241,7 +266,7 @@ export function EscalationQueue() {
                 
                 {!escalation.response ? (
                   <div className="space-y-2">
-                    {suggestedResponses[escalation.id] && !responseTexts[escalation.id] && (
+                    {suggestedResponses[escalation.id] && !dismissedSuggestions[escalation.id] && (
                       <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2">
                         <div className="flex items-center gap-2">
                           <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -259,6 +284,11 @@ export function EscalationQueue() {
                                 ...prev,
                                 [escalation.id]: suggestedResponses[escalation.id]
                               }))
+                              // Auto-dismiss when using the suggestion
+                              setDismissedSuggestions(prev => ({
+                                ...prev,
+                                [escalation.id]: true
+                              }))
                             }}
                             className="text-xs"
                           >
@@ -268,11 +298,10 @@ export function EscalationQueue() {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              setSuggestedResponses(prev => {
-                                const next = { ...prev }
-                                delete next[escalation.id]
-                                return next
-                              })
+                              setDismissedSuggestions(prev => ({
+                                ...prev,
+                                [escalation.id]: true
+                              }))
                             }}
                             className="text-xs"
                           >
@@ -283,11 +312,19 @@ export function EscalationQueue() {
                     )}
                     <div className="flex items-center justify-between">
                       <label className="text-sm font-medium">Your Response:</label>
-                      {!suggestedResponses[escalation.id] && !loadingSuggestions[escalation.id] && (
+                      {(!suggestedResponses[escalation.id] || dismissedSuggestions[escalation.id]) && !loadingSuggestions[escalation.id] && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleGetSuggestion(escalation.id, escalation.query, escalation.category || 'Other')}
+                          onClick={() => {
+                            handleGetSuggestion(escalation.id, escalation.query, escalation.category || 'Other')
+                            // Reset dismissal when getting a new suggestion
+                            setDismissedSuggestions(prev => {
+                              const next = { ...prev }
+                              delete next[escalation.id]
+                              return next
+                            })
+                          }}
                           className="text-xs h-7"
                           disabled={loadingSuggestions[escalation.id]}
                         >

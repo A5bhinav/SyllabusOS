@@ -241,14 +241,16 @@ function getDefaultGradeDistribution(courseCode: string) {
   return distributions[courseCode] || { A: 20, B: 30, C: 30, D: 15, F: 5 }
 }
 
+/**
+ * GET /api/courses/feedback/[courseCode]
+ * Scrape Reddit for course feedback by course code (e.g., "CSE 101")
+ */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ courseCode: string }> | { courseCode: string } }
+  { params }: { params: Promise<{ courseCode: string }> }
 ) {
   try {
-    // Handle both Promise and direct params (Next.js 15+ vs older)
-    const resolvedParams = await Promise.resolve(context.params)
-    const rawCourseCode = resolvedParams.courseCode
+    const { courseCode: rawCourseCode } = await params
 
     if (!rawCourseCode) {
       return NextResponse.json(
@@ -344,3 +346,4 @@ export async function GET(
     )
   }
 }
+

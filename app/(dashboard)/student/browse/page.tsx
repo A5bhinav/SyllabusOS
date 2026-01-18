@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { BookOpen, CheckCircle, PlusCircle, XCircle, BarChart3, TrendingUp, TrendingDown, ThumbsUp, ThumbsDown, Star, ExternalLink } from 'lucide-react'
-import type { CourseFeedback } from '@/app/api/courses/[courseCode]/feedback/route'
+import type { CourseFeedback } from '@/app/api/courses/feedback/[courseCode]/route'
 import Link from 'next/link'
 import type { Course } from '@/types/api'
 import { StudentNav } from '@/components/student/StudentNav'
@@ -212,7 +215,7 @@ export default function BrowseCoursesPage() {
 
       try {
         setLoadingFeedback(true)
-        const url = `/api/courses/${encodeURIComponent(courseCode)}/feedback`
+        const url = `/api/courses/feedback/${encodeURIComponent(courseCode)}`
         console.log('Loading feedback for course:', courseCode, 'URL:', url)
         const response = await fetch(url)
         

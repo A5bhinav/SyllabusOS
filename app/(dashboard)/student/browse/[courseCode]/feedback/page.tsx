@@ -18,7 +18,7 @@ import {
   ThumbsDown
 } from 'lucide-react'
 import Link from 'next/link'
-import type { CourseFeedback } from '@/app/api/courses/[courseCode]/feedback/route'
+import type { CourseFeedback } from '@/app/api/courses/feedback/[courseCode]/route'
 
 export default function CourseFeedbackPage() {
   const params = useParams()
@@ -42,7 +42,7 @@ export default function CourseFeedbackPage() {
         
         // Ensure course code is properly encoded
         const encodedCode = encodeURIComponent(courseCode)
-        const response = await fetch(`/api/courses/${encodedCode}/feedback`)
+        const response = await fetch(`/api/courses/feedback/${encodedCode}`)
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))

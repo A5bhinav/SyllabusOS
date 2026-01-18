@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -22,11 +22,7 @@ export function AnnouncementDrafts() {
   const [editContent, setEditContent] = useState('')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    loadAnnouncements()
-  }, [])
-
-  async function loadAnnouncements() {
+  const loadAnnouncements = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -40,9 +36,13 @@ export function AnnouncementDrafts() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  async function handleApprove(id: string) {
+  useEffect(() => {
+    loadAnnouncements()
+  }, [loadAnnouncements])
+
+  const handleApprove = useCallback(async (id: string) => {
     try {
       setSaving(true)
       await updateAnnouncement(id, { status: 'published' })
@@ -63,18 +63,18 @@ export function AnnouncementDrafts() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [loadAnnouncements, toast])
 
-  async function handleEdit(id: string) {
+  const handleEdit = useCallback((id: string) => {
     const announcement = announcements.find(a => a.id === id)
     if (announcement) {
       setEditingId(id)
       setEditTitle(announcement.title)
       setEditContent(announcement.content)
     }
-  }
+  }, [announcements])
 
-  async function handleSaveEdit() {
+  const handleSaveEdit = useCallback(async () => {
     if (!editingId) return
     
     try {
@@ -103,13 +103,13 @@ export function AnnouncementDrafts() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [editingId, editTitle, editContent, loadAnnouncements, toast])
 
-  function handleCancelEdit() {
+  const handleCancelEdit = useCallback(() => {
     setEditingId(null)
     setEditTitle('')
     setEditContent('')
-  }
+  }, [])
 
   if (loading) {
     return (

@@ -1,0 +1,28 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/upload/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/api/chat/route.ts": {
+      "maxDuration": 30,
+      "memory": 512
+    },
+    "app/api/conductor/route.ts": {
+      "maxDuration": 30,
+      "memory": 512
+    },
+    "app/api/escalations/suggest/route.ts": {
+      "maxDuration": 30,
+      "memory": 512
+    },
+    "app/api/demo/load/route.ts": {
+      "maxDuration": 60,
+      "memory": 512
+    }
+  },
+  "regions": ["iad1"]
+}
+

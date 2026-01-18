@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getPulseReport } from '@/lib/api/pulse'
@@ -15,11 +15,7 @@ export function PulseReport() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadPulseData()
-  }, [])
-
-  async function loadPulseData() {
+  const loadPulseData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -31,7 +27,11 @@ export function PulseReport() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadPulseData()
+  }, [loadPulseData])
 
   if (loading) {
     return (
@@ -71,21 +71,24 @@ export function PulseReport() {
     avgResponseTime: 0,
   }
 
-  // Prepare data for charts
-  const lineChartData =
-    pulseData.dailyTrends?.map((trend) => ({
+  // Memoize chart data to prevent recalculation on every render
+  const lineChartData = useMemo(() => {
+    return pulseData.dailyTrends?.map((trend) => ({
       date: format(new Date(trend.date), 'MMM d'),
       fullDate: trend.date,
       queries: trend.count,
     })) || []
+  }, [pulseData.dailyTrends])
 
-  const pieChartData = pulseData.queryDistribution
-    ? [
-        { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
-        { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
-        { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
-      ].filter((item) => item.value > 0)
-    : []
+  const pieChartData = useMemo(() => {
+    return pulseData.queryDistribution
+      ? [
+          { name: 'Policy', value: pulseData.queryDistribution.POLICY, color: '#3b82f6' },
+          { name: 'Concept', value: pulseData.queryDistribution.CONCEPT, color: '#10b981' },
+          { name: 'Escalated', value: pulseData.queryDistribution.ESCALATE, color: '#f59e0b', description: 'Personal issues or complex problems requiring professor review' },
+        ].filter((item) => item.value > 0)
+      : []
+  }, [pulseData.queryDistribution])
 
   return (
     <Card className="overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-200 border-2 hover:border-purple-500/20">
@@ -224,11 +227,11 @@ export function PulseReport() {
                               maxWidth: '200px',
                               wordWrap: 'break-word',
                             }}
-                            formatter={(value: number | undefined, name: string) => [
+                            formatter={(value: number | undefined, name: string | undefined) => [
                               `${value ?? 0} ${value === 1 ? 'query' : 'queries'}`,
                               name === 'Escalated' 
                                 ? 'Needs Professor Review' 
-                                : name
+                                : name || ''
                             ]}
                             labelStyle={{ 
                               fontWeight: 600, 

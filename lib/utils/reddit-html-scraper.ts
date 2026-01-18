@@ -35,26 +35,46 @@ export async function scrapeRedditHTML(
 
   try {
     // Fetch HTML with proper headers to mimic a real browser
-    // Reddit blocks requests without proper browser headers
+    // IMPORTANT: On Vercel/serverless, avoid Connection: keep-alive and Accept-Encoding
+    // Node.js fetch automatically handles encoding, and serverless doesn't keep connections
+    const isVercel = !!process.env.VERCEL
+    
+    // Set up timeout for Vercel (they have strict timeouts)
+    let signal: AbortSignal | undefined = undefined
+    if (isVercel) {
+      const controller = new AbortController()
+      setTimeout(() => controller.abort(), 25000) // 25 seconds
+      signal = controller.signal
+    }
+    
     const response = await fetch(searchUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
+        // Don't set Accept-Encoding on Vercel - Node.js fetch handles it automatically
+        // Some servers reject compression requests from serverless functions
+        ...(isVercel ? {} : { 'Accept-Encoding': 'gzip, deflate, br' }),
         'DNT': '1',
-        'Connection': 'keep-alive',
+        // Don't use keep-alive on serverless (Vercel)
         'Upgrade-Insecure-Requests': '1',
         'Sec-Fetch-Dest': 'document',
         'Sec-Fetch-Mode': 'navigate',
         'Sec-Fetch-Site': 'none',
         'Sec-Fetch-User': '?1',
         'Cache-Control': 'max-age=0',
+        // Add Referer to look more like a real browser
+        'Referer': `https://old.reddit.com/r/${subreddit}/`,
       },
       cache: 'no-store',
+      ...(signal ? { signal } : {}),
     })
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unable to read error response')
+      console.error(`[Reddit HTML] HTTP ${response.status}: ${response.statusText}`)
+      console.error(`[Reddit HTML] Error response preview: ${errorText.substring(0, 500)}`)
+      console.error(`[Reddit HTML] Environment: ${isVercel ? 'Vercel' : 'Local'}`)
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
@@ -63,6 +83,8 @@ export async function scrapeRedditHTML(
     // Debug: Log HTML length to see if we got content
     console.log(`[Reddit HTML] Fetched HTML length: ${html.length} characters`)
     console.log(`[Reddit HTML] URL: ${searchUrl}`)
+    console.log(`[Reddit HTML] Environment: ${isVercel ? 'Vercel' : 'Local'}`)
+    console.log(`[Reddit HTML] Response status: ${response.status}`)
     
     // Check if Reddit blocked us
     if (html.includes('Blocked') || html.includes('please register') || html.toLowerCase().includes('access denied')) {
@@ -299,6 +321,15 @@ async function scrapeRedditHTMLFallback(
 ): Promise<RedditPost[]> {
   // Use old.reddit.com for fallback too - it's the only reliable way to scrape
   const recentUrl = `https://old.reddit.com/r/${subreddit}/new/`
+  const isVercel = !!process.env.VERCEL
+
+  // Set up timeout for Vercel
+  let signal: AbortSignal | undefined = undefined
+  if (isVercel) {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), 25000) // 25 seconds
+    signal = controller.signal
+  }
 
   try {
     const response = await fetch(recentUrl, {
@@ -306,16 +337,18 @@ async function scrapeRedditHTMLFallback(
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
+        // Don't set Accept-Encoding on Vercel
+        ...(isVercel ? {} : { 'Accept-Encoding': 'gzip, deflate, br' }),
         'DNT': '1',
-        'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
         'Sec-Fetch-Dest': 'document',
         'Sec-Fetch-Mode': 'navigate',
         'Sec-Fetch-Site': 'none',
         'Sec-Fetch-User': '?1',
+        'Referer': `https://old.reddit.com/r/${subreddit}/`,
       },
       cache: 'no-store',
+      ...(signal ? { signal } : {}),
     })
 
     if (!response.ok) {

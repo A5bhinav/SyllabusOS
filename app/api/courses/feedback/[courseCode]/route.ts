@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse } from '@/lib/utils/api-errors'
 
+// Vercel configuration
+export const runtime = 'nodejs'
+export const maxDuration = 30 // 30 seconds for Reddit API calls
+
 // Define CourseFeedback type for this route
 export interface CourseFeedback {
   courseCode: string
@@ -144,8 +148,12 @@ async function scrapeRedditForCourse(
       try {
         const searchUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(term)}&restrict_sr=1&limit=10&sort=relevance&t=all`
         const response = await fetch(searchUrl, {
-          headers: { 'User-Agent': 'SyllabusOS/1.0' },
-          next: { revalidate: 300 }
+          headers: { 
+            'User-Agent': 'SyllabusOS/1.0 (https://syllabusos.vercel.app)',
+            'Accept': 'application/json'
+          },
+          // Remove next.revalidate - not supported in API routes on Vercel
+          cache: 'no-store' // Always fetch fresh data
         })
         
         if (response.ok) {

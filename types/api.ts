@@ -144,3 +144,43 @@ export interface Course {
   isEnrolled: boolean // For students: indicates if they're enrolled in this course
 }
 
+export interface CourseFeedback {
+  courseName: string
+  difficulty: {
+    average: number
+    distribution: { [key: number]: number }
+  }
+  professorRating: {
+    average: number
+    count: number
+  }
+  positiveFeedback: string[]
+  negativeFeedback: string[]
+  gradeDistribution: {
+    A: number
+    'A-': number
+    'B+': number
+    B: number
+    'B-': number
+    'C+': number
+    C: number
+    'C-': number
+    'D+': number
+    D: number
+    'D-': number
+    F: number
+    P: number // Pass
+    NP: number // No Pass
+    W: number // Withdrew
+  }
+  samplePosts: Array<{
+    title: string
+    content: string
+    upvotes: number
+    url: string
+    subreddit: string
+    created: number
+  }>
+  totalEnrollment?: number
+  averageGPA?: number
+}

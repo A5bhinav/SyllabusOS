@@ -4,140 +4,142 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { BookOpen, CheckCircle, PlusCircle, XCircle } from 'lucide-react'
+import { BookOpen, CheckCircle, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Course } from '@/types/api'
 import { StudentNav } from '@/components/student/StudentNav'
 
-// Fake courses data for demonstration
+// UC Santa Cruz courses for SlugHacks
 const FAKE_COURSES: Course[] = [
   {
     id: 'fake-course-1',
-    name: 'CS 101 - Introduction to Computer Science',
+    name: 'CMPS 101 - Algorithms and Abstract Data Types',
     professorId: 'prof-1',
-    professorName: 'Dr. Sarah Chen',
-    professorEmail: 'sarah.chen@university.edu',
-    joinCode: 'CS101A',
+    professorName: 'Dr. Patrick Tantalo',
+    professorEmail: 'tantalo@ucsc.edu',
+    joinCode: 'CMPS1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
     id: 'fake-course-2',
-    name: 'MATH 210 - Linear Algebra',
+    name: 'CMPS 12B - Data Structures',
     professorId: 'prof-2',
-    professorName: 'Prof. James Rodriguez',
-    professorEmail: 'j.rodriguez@university.edu',
-    joinCode: 'MATH2X',
+    professorName: 'Prof. Darrell Long',
+    professorEmail: 'darrell@ucsc.edu',
+    joinCode: 'CMPS2',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
     id: 'fake-course-3',
-    name: 'PHYS 150 - Mechanics and Waves',
+    name: 'MATH 19A - Calculus for Science, Engineering, and Mathematics',
     professorId: 'prof-3',
-    professorName: 'Dr. Emily Watson',
-    professorEmail: 'e.watson@university.edu',
-    joinCode: 'PHY15',
+    professorName: 'Dr. Francois Ziegler',
+    professorEmail: 'ziegler@ucsc.edu',
+    joinCode: 'MATH1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
     id: 'fake-course-4',
-    name: 'CHEM 120 - General Chemistry',
+    name: 'CSE 101 - Algorithms and Complexity',
     professorId: 'prof-4',
-    professorName: 'Dr. Michael Park',
-    professorEmail: 'm.park@university.edu',
-    joinCode: 'CHEM1',
+    professorName: 'Prof. Dustin Long',
+    professorEmail: 'dlong@ucsc.edu',
+    joinCode: 'CSE10',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
     id: 'fake-course-5',
-    name: 'ENGL 200 - Creative Writing Workshop',
+    name: 'ECON 1 - Introductory Microeconomics',
     professorId: 'prof-5',
-    professorName: 'Prof. Lisa Thompson',
-    professorEmail: 'l.thompson@university.edu',
-    joinCode: 'ENG20',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isEnrolled: false,
-  },
-  {
-    id: 'fake-course-6',
-    name: 'HIST 105 - World History: Modern Era',
-    professorId: 'prof-6',
-    professorName: 'Dr. Robert Kim',
-    professorEmail: 'r.kim@university.edu',
-    joinCode: 'HIST5',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isEnrolled: false,
-  },
-  {
-    id: 'fake-course-7',
-    name: 'PSYC 201 - Introduction to Psychology',
-    professorId: 'prof-7',
-    professorName: 'Dr. Amanda Johnson',
-    professorEmail: 'a.johnson@university.edu',
-    joinCode: 'PSY20',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isEnrolled: false,
-  },
-  {
-    id: 'fake-course-8',
-    name: 'ECON 101 - Principles of Microeconomics',
-    professorId: 'prof-8',
-    professorName: 'Prof. David Lee',
-    professorEmail: 'd.lee@university.edu',
+    professorName: 'Dr. Mark Traugott',
+    professorEmail: 'traugott@ucsc.edu',
     joinCode: 'ECON1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
+    id: 'fake-course-6',
+    name: 'CHEM 1B - General Chemistry',
+    professorId: 'prof-6',
+    professorName: 'Dr. Glenn Millhauser',
+    professorEmail: 'glenn@ucsc.edu',
+    joinCode: 'CHEM1',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-7',
+    name: 'PHYS 5A - Introduction to Physics I',
+    professorId: 'prof-7',
+    professorName: 'Dr. Michael Dine',
+    professorEmail: 'mdine@ucsc.edu',
+    joinCode: 'PHYS5',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-8',
+    name: 'BIOL 20A - Cell and Molecular Biology',
+    professorId: 'prof-8',
+    professorName: 'Dr. William Saxton',
+    professorEmail: 'saxton@ucsc.edu',
+    joinCode: 'BIOL2',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
     id: 'fake-course-9',
-    name: 'BIO 150 - Cell Biology',
+    name: 'STAT 5 - Statistics',
     professorId: 'prof-9',
-    professorName: 'Dr. Jennifer Martinez',
-    professorEmail: 'j.martinez@university.edu',
-    joinCode: 'BIO15',
+    professorName: 'Prof. Bruno Sanso',
+    professorEmail: 'sanso@ucsc.edu',
+    joinCode: 'STAT5',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
     id: 'fake-course-10',
-    name: 'ART 110 - Introduction to Digital Design',
+    name: 'LIT 1 - Introduction to Literature',
     professorId: 'prof-10',
-    professorName: 'Prof. Christopher Brown',
-    professorEmail: 'c.brown@university.edu',
-    joinCode: 'ART11',
+    professorName: 'Prof. Micah Perks',
+    professorEmail: 'mperks@ucsc.edu',
+    joinCode: 'LIT1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
   },
   {
     id: 'fake-course-11',
-    name: 'STAT 200 - Introduction to Statistics',
+    name: 'PSYC 1 - Introduction to Psychology',
     professorId: 'prof-11',
-    professorName: 'Dr. Patricia Williams',
-    professorEmail: 'p.williams@university.edu',
-    joinCode: null, // No join code for this course
+    professorName: 'Dr. Karen Page',
+    professorEmail: 'kpage@ucsc.edu',
+    joinCode: 'PSYC1',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-12',
+    name: 'CSE 12 - Computer Systems and Assembly Language',
+    professorId: 'prof-12',
+    professorName: 'Prof. Charlie McDowell',
+    professorEmail: 'mcdowell@ucsc.edu',
+    joinCode: 'CSE12',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isEnrolled: false,
@@ -149,11 +151,6 @@ export default function BrowseCoursesPage() {
   const [loading, setLoading] = useState(true)
   const [courses, setCourses] = useState<Course[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
-  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false)
-  const [joinCode, setJoinCode] = useState('')
-  const [enrolling, setEnrolling] = useState(false)
-  const [enrollError, setEnrollError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadCourses() {
@@ -195,61 +192,10 @@ export default function BrowseCoursesPage() {
       return
     }
     
-    // Open enrollment dialog
-    setSelectedCourse(course)
-    setJoinCode('') // Don't pre-fill join code
-    setEnrollDialogOpen(true)
-    setEnrollError(null)
+    // Navigate to course detail page with feedback
+    router.push(`/student/courses/${course.id}`)
   }
 
-  async function handleEnroll() {
-    if (!selectedCourse) return
-
-    // If course has a join code, require it
-    if (selectedCourse.joinCode && !joinCode.trim()) {
-      setEnrollError('Please enter a join code')
-      return
-    }
-
-    try {
-      setEnrolling(true)
-      setEnrollError(null)
-
-      // For courses without join codes, we can try direct enrollment by course ID
-      // For now, we'll use the join code endpoint if code exists, otherwise redirect to enroll page
-      if (selectedCourse.joinCode) {
-        const response = await fetch('/api/enrollments/join', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            joinCode: joinCode.trim().toUpperCase(),
-          }),
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-          setEnrollError(data.error || 'Failed to enroll in course')
-          return
-        }
-
-        // Success - close dialog and redirect
-        setEnrollDialogOpen(false)
-        router.replace(`/student/chat?courseId=${selectedCourse.id}&enrolled=true`)
-      } else {
-        // No join code - redirect to enroll page which handles enrollment differently
-        setEnrollDialogOpen(false)
-        router.push(`/student/enroll/${selectedCourse.id}`)
-      }
-    } catch (err: any) {
-      console.error('Error enrolling:', err)
-      setEnrollError(err.message || 'Failed to enroll in course')
-    } finally {
-      setEnrolling(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -352,83 +298,6 @@ export default function BrowseCoursesPage() {
             </Card>
             ))}
           </div>
-
-          {/* Enrollment Dialog */}
-          <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-2xl">{selectedCourse?.name}</DialogTitle>
-                    {selectedCourse?.professorName && (
-                      <DialogDescription>
-                        {selectedCourse.professorName}
-                        {selectedCourse.professorEmail && ` • ${selectedCourse.professorEmail}`}
-                      </DialogDescription>
-                    )}
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                {enrollError && (
-                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2">
-                    <XCircle className="h-4 w-4" />
-                    {enrollError}
-                  </div>
-                )}
-
-                {selectedCourse?.joinCode ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="joinCode">Join Code</Label>
-                    <Input
-                      id="joinCode"
-                      type="text"
-                      placeholder="Enter 6-character code"
-                      value={joinCode}
-                      onChange={(e) => {
-                        const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
-                        setJoinCode(value)
-                        setEnrollError(null)
-                      }}
-                      className="text-center text-2xl font-mono tracking-widest"
-                      maxLength={6}
-                      disabled={enrolling}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Enter the join code provided by your professor
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                    This course does not require a join code. Click enroll to join.
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleEnroll}
-                  disabled={enrolling || (selectedCourse?.joinCode ? !joinCode.trim() || joinCode.length !== 6 : false)}
-                  className="w-full"
-                  size="lg"
-                >
-                  {enrolling ? (
-                    <>
-                      <LoadingSpinner size="sm" className="mr-2" />
-                      Enrolling...
-                    </>
-                  ) : (
-                    <>
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      Enroll in Course
-                    </>
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </>
       )}
       </div>

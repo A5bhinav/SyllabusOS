@@ -320,22 +320,38 @@ export function StudentEscalations() {
                         </div>
                         
                         {/* Video player if available */}
-                        {currentEscalation.videoUrl && (
-                          <div className="rounded-lg overflow-hidden border border-primary/20 bg-black">
-                            <video
-                              controls
-                              className="w-full max-w-md mx-auto"
-                              src={currentEscalation.videoUrl}
-                              preload="metadata"
-                            >
-                              Your browser does not support the video tag.
-                            </video>
-                            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1 justify-center">
+                        {currentEscalation.videoUrl ? (
+                          <div className="space-y-2">
+                            <div className="rounded-lg overflow-hidden border border-primary/20 bg-black">
+                              <video
+                                controls
+                                className="w-full max-w-md mx-auto"
+                                src={currentEscalation.videoUrl}
+                                preload="metadata"
+                                onError={(e) => {
+                                  console.error('[Video] Failed to load video:', currentEscalation.videoUrl)
+                                  console.error('[Video] Error:', e)
+                                }}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 justify-center">
                               <Video className="h-3 w-3" />
                               Video response available
+                              {currentEscalation.videoGenerationStatus && (
+                                <span className="ml-2 text-muted-foreground/70">({currentEscalation.videoGenerationStatus})</span>
+                              )}
                             </p>
                           </div>
-                        )}
+                        ) : currentEscalation.videoGenerationStatus && currentEscalation.videoGenerationStatus !== 'failed' ? (
+                          <div className="rounded-lg border border-primary/20 bg-muted/30 p-4 text-center">
+                            <Video className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-pulse" />
+                            <p className="text-xs text-muted-foreground">
+                              Video generation {currentEscalation.videoGenerationStatus === 'pending' ? 'pending' : 'in progress'}...
+                            </p>
+                          </div>
+                        ) : null}
                         
                         <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg p-4">
                           <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">

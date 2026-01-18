@@ -69,6 +69,9 @@ export async function GET(request: NextRequest) {
         response,
         responded_at,
         responded_by,
+        video_url,
+        video_generated_at,
+        video_generation_status,
         profiles!escalations_student_id_fkey (
           name,
           email
@@ -345,6 +348,7 @@ export async function PUT(request: NextRequest) {
     let updateError: any = null
     
     // If response provided, try with video_generation_status
+    let videoFieldsSupported = false
     if (response !== undefined && response.trim().length > 0) {
       try {
         const updateWithVideo = { ...updateData, video_generation_status: 'pending' }
@@ -372,6 +376,8 @@ export async function PUT(request: NextRequest) {
         
         if (result.data && !result.error) {
           updatedEscalation = result.data
+          videoFieldsSupported = true // Successfully updated with video fields
+          console.log(`[Escalations API] Successfully updated escalation with video_generation_status='pending'`)
         } else if (result.error) {
           // Check if error is about missing column
           const errorMsg = result.error.message || ''
@@ -379,6 +385,7 @@ export async function PUT(request: NextRequest) {
             // Column doesn't exist, try without it
             console.warn('[Escalations API] video_generation_status column not found, updating without it')
             updateError = null // Reset to try again
+            videoFieldsSupported = false
           } else {
             // Different error, keep it
             updateError = result.error
@@ -388,6 +395,7 @@ export async function PUT(request: NextRequest) {
         // Column might not exist, continue to try without
         console.warn('[Escalations API] Error updating with video fields, trying without:', err)
         updateError = null
+        videoFieldsSupported = false
       }
     }
     
@@ -424,18 +432,12 @@ export async function PUT(request: NextRequest) {
     }
 
     // Trigger async video generation if response was provided and video fields are supported
-    // Only attempt if the initial update included video_generation_status
     if (response !== undefined && response.trim().length > 0) {
-      try {
-        // Check if video fields exist by querying the escalation
-        const { data: checkEscalation } = await supabase
-          .from('escalations')
-          .select('video_generation_status')
-          .eq('id', escalationId)
-          .single()
-        
-        // Only trigger video generation if video_generation_status column exists
-        if (checkEscalation && 'video_generation_status' in checkEscalation) {
+      // Use videoFieldsSupported flag from update attempt instead of re-querying
+      if (videoFieldsSupported) {
+        try {
+          console.log(`[Escalations API] Triggering video generation for escalation ${escalationId}`)
+          
           // Get student and course context
           const studentProfile = Array.isArray(updatedEscalation.profiles)
             ? updatedEscalation.profiles[0]
@@ -451,14 +453,17 @@ export async function PUT(request: NextRequest) {
           }
 
           // Trigger video generation asynchronously (non-blocking)
+          console.log(`[Escalations API] Calling generateVideoAsync for escalation ${escalationId}`)
           generateVideoAsync(updatedEscalation.id, response, context).catch(error => {
-            console.error(`[Escalations API] Failed to trigger video generation:`, error)
+            console.error(`[Escalations API] Failed to trigger video generation for ${escalationId}:`, error?.message || error)
             // Don't fail the request if video generation fails
           })
+        } catch (videoError: any) {
+          // Log but don't fail the request if video setup fails
+          console.error(`[Escalations API] Error setting up video generation:`, videoError?.message || videoError)
         }
-      } catch (videoError) {
-        // Log but don't fail the request if video setup fails
-        console.error(`[Escalations API] Error setting up video generation:`, videoError)
+      } else {
+        console.warn(`[Escalations API] Video generation skipped - video_generation_status column not found. Ensure migration 010_add_video_to_escalations.sql has been run.`)
       }
     }
 

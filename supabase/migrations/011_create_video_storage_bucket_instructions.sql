@@ -1,0 +1,49 @@
+-- ============================================================================
+-- IMPORTANT: Storage Bucket Setup Instructions
+-- ============================================================================
+-- 
+-- NOTE: Supabase storage buckets CANNOT be created via SQL migrations.
+-- You MUST create the bucket manually using one of the methods below.
+--
+-- This migration file is for documentation only - it does NOT execute SQL.
+-- Run this file manually in Supabase dashboard SQL editor AFTER creating the bucket
+-- to verify the bucket exists (optional verification queries).
+--
+-- ============================================================================
+-- MANUAL SETUP REQUIRED: Create Storage Bucket
+-- ============================================================================
+--
+-- Method 1: Via Supabase Dashboard (Recommended)
+-- ----------------------------------------------
+-- 1. Go to your Supabase project dashboard
+-- 2. Navigate to "Storage" in the left sidebar
+-- 3. Click "Buckets" tab
+-- 4. Click "New bucket" button
+-- 5. Bucket configuration:
+--    - Name: "escalation-videos"
+--    - Public bucket: ✅ Check this (or uncheck for private with signed URLs)
+-- 6. Click "Create bucket"
+--
+-- Method 2: Via Supabase CLI
+-- ---------------------------
+-- Run: supabase storage create escalation-videos --public
+--
+-- Method 3: Via Supabase REST API (requires service role key)
+-- ------------------------------------------------------------
+-- curl -X POST 'https://<project-ref>.supabase.co/storage/v1/bucket' \
+--   -H 'Authorization: Bearer <service-role-key>' \
+--   -H 'Content-Type: application/json' \
+--   -d '{"name": "escalation-videos", "public": true}'
+--
+-- ============================================================================
+-- Optional: Verify bucket exists (run this after creating bucket manually)
+-- ============================================================================
+-- 
+-- SELECT name, public, created_at 
+-- FROM storage.buckets 
+-- WHERE name = 'escalation-videos';
+--
+-- If this query returns a row, the bucket exists and is ready to use.
+-- If it returns no rows, the bucket doesn't exist - create it manually first.
+--
+-- ============================================================================

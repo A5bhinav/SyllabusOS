@@ -38,7 +38,15 @@ export async function uploadVideo(
     })
 
   if (error) {
-    throw new Error(`Failed to upload video: ${error.message}`)
+    // Provide helpful error messages for common storage issues
+    if (error.message?.includes('Bucket not found') || error.message?.includes('does not exist')) {
+      throw new Error(`Storage bucket "${BUCKET_NAME}" does not exist. Please create it in Supabase dashboard under Storage → Buckets. See migration 011 for instructions.`)
+    } else if (error.message?.includes('new row violates row-level security') || error.message?.includes('RLS')) {
+      throw new Error(`Storage bucket "${BUCKET_NAME}" RLS policy denied access. Check bucket permissions in Supabase dashboard.`)
+    } else if (error.message?.includes('JWT') || error.message?.includes('unauthorized')) {
+      throw new Error(`Unauthorized to upload to storage bucket "${BUCKET_NAME}". Check your Supabase credentials and RLS policies.`)
+    }
+    throw new Error(`Failed to upload video to storage: ${error.message}`)
   }
 
   // Get public URL (or signed URL if private)

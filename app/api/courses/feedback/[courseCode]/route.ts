@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse } from '@/lib/utils/api-errors'
+import { getRedditToken } from '@/lib/utils/reddit-oauth'
 
 // Vercel configuration
 export const runtime = 'nodejs'
@@ -141,35 +142,80 @@ function normalizeCourseCode(code: string): string | null {
 }
 
 /**
- * Reddit Scraper using JSON API (No authentication required!)
- * Based on Python Reddit scraper - uses Reddit's public JSON endpoints
- * by appending .json to any Reddit URL. No API keys needed!
+ * Scrape Reddit using OAuth2 API (more reliable)
  */
-async function scrapeRedditForCourse(
+async function scrapeRedditWithOAuth(
   courseCode: string,
-  fullCourseName: string
-): Promise<CourseFeedback> {
-  const subreddit = 'UCSC'
-  const baseUrl = 'https://www.reddit.com'
+  subreddit: string,
+  userAgent: string
+): Promise<any[]> {
+  const token = await getRedditToken()
+  const searchTerms = [courseCode, courseCode.replace(/\s+/g, '')]
   let allPosts: any[] = []
+
+  for (const term of searchTerms) {
+    try {
+      const url = `https://oauth.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(term)}&restrict_sr=1&limit=10&sort=relevance&t=all`
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': userAgent,
+        },
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data?.data?.children) {
+          const posts = data.data.children.filter((child: any) => {
+            const postData = child.data
+            return postData && !postData.removed_by_category && postData.title
+          })
+          if (posts.length > 0) {
+            allPosts = [...allPosts, ...posts]
+            console.log(`[Reddit OAuth] Found ${posts.length} posts for "${term}"`)
+          }
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error(`[Reddit OAuth] Error searching "${term}":`, err.message)
+      }
+    }
+  }
+
+  return allPosts
+}
+
+/**
+ * Scrape Reddit using public JSON API (fallback)
+ */
+async function scrapeRedditPublicJSON(
+  courseCode: string,
+  subreddit: string,
+  userAgent: string
+): Promise<any[]> {
+  const baseUrl = 'https://www.reddit.com'
+  const searchTerms = [
+    courseCode,
+    courseCode.replace(/\s+/g, ''),
+    courseCode.replace(/\s+/g, ' '),
+    courseCode.match(/^([A-Z]+)/)?.[1] + ' ' + courseCode.match(/(\d+)/)?.[1],
+  ].filter(Boolean) as string[]
   
-  // User-Agent: Simple identifier like Python script uses
-  // Reddit's JSON API works without auth, but needs a User-Agent
-  const userAgent = 'SyllabusOS/1.0 (Node.js; +https://syllabusos.vercel.app)'
+  let allPosts: any[] = []
+
+  // Try search endpoint
+  console.log(`[Reddit Public JSON] Searching for course "${courseCode}" with terms:`, searchTerms)
   
-  try {
-    // Try multiple search variations to catch more posts
-    const searchTerms = [
-      courseCode,                                    // "CSE 101"
-      courseCode.replace(/\s+/g, ''),               // "CSE101"
-      courseCode.replace(/\s+/g, ' '),              // Normalized spacing
-      courseCode.match(/^([A-Z]+)/)?.[1] + ' ' + courseCode.match(/(\d+)/)?.[1], // Ensure format
-    ].filter(Boolean) as string[]
-    
-    console.log(`[Reddit] Searching for course "${courseCode}" with terms:`, searchTerms)
-    
-    // Method 1: Try Reddit's search endpoint using .json (no API key needed!)
-    for (const term of searchTerms) {
+  for (const term of searchTerms) {
       try {
         // Reddit JSON API: append .json to any Reddit URL - no auth required!
         const searchUrl = `${baseUrl}/r/${subreddit}/search.json`
@@ -291,6 +337,43 @@ async function scrapeRedditForCourse(
           console.error(`[Reddit] Fallback method failed:`, err.message || err)
         }
       }
+    }
+
+  return allPosts
+}
+
+/**
+ * Reddit Scraper - tries OAuth first, falls back to public JSON API
+ */
+async function scrapeRedditForCourse(
+  courseCode: string,
+  fullCourseName: string
+): Promise<CourseFeedback> {
+  const subreddit = 'UCSC'
+  let allPosts: any[] = []
+  
+  const userAgent = process.env.REDDIT_USER_AGENT || 'SyllabusOS/1.0 (Node.js; +https://syllabusos.vercel.app)'
+  const hasOAuth = !!(process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET)
+  
+  try {
+    // Try OAuth2 API first (more reliable, higher rate limits)
+    if (hasOAuth) {
+      try {
+        console.log('[Reddit] Attempting OAuth2 authenticated API')
+        allPosts = await scrapeRedditWithOAuth(courseCode, subreddit, userAgent)
+        if (allPosts.length > 0) {
+          console.log(`[Reddit OAuth] Found ${allPosts.length} posts`)
+        }
+      } catch (oauthError: any) {
+        console.warn('[Reddit OAuth] Failed, falling back to public JSON API:', oauthError.message)
+        // Fall through to public JSON API
+      }
+    }
+    
+    // Fallback to public JSON API if OAuth failed or not configured
+    if (allPosts.length === 0) {
+      console.log('[Reddit] Using public JSON API (no auth)')
+      allPosts = await scrapeRedditPublicJSON(courseCode, subreddit, userAgent)
     }
 
     // Remove duplicates (like Python script's unique post handling)

@@ -162,18 +162,31 @@ export default function EnrollCoursePage() {
       if (!course) return
 
       const courseCode = getCourseCode(course.name)
-      if (!courseCode) return
+      if (!courseCode) {
+        console.warn('[Enroll] No course code found for:', course.name)
+        return
+      }
 
       try {
         setLoadingFeedback(true)
+        console.log('[Enroll] Fetching feedback for course code:', courseCode)
         const response = await fetch(`/api/courses/feedback/${encodeURIComponent(courseCode)}`)
         
         if (response.ok) {
           const data = await response.json()
+          console.log('[Enroll] Feedback received:', {
+            hasRedditPosts: data.redditPosts?.length || 0,
+            hasPositiveFeedback: data.positiveFeedback?.length || 0,
+            hasNegativeFeedback: data.negativeFeedback?.length || 0,
+            difficulty: data.difficulty
+          })
           setCourseFeedback(data)
+        } else {
+          const errorText = await response.text()
+          console.error('[Enroll] Feedback API error:', response.status, errorText)
         }
       } catch (err) {
-        console.error('Error loading feedback:', err)
+        console.error('[Enroll] Error loading feedback:', err)
       } finally {
         setLoadingFeedback(false)
       }

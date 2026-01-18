@@ -75,7 +75,8 @@ export async function GET(
     console.log(`[Feedback API] Returning feedback for ${courseCode}:`, {
       hasPositiveFeedback: feedback.positiveFeedback?.length || 0,
       hasNegativeFeedback: feedback.negativeFeedback?.length || 0,
-      hasRedditPosts: feedback.redditPosts?.length || 0
+      hasRedditPosts: feedback.redditPosts?.length || 0,
+      redditPostsDetails: feedback.redditPosts?.map(p => ({ title: p.title, url: p.url })) || []
     })
     
     return NextResponse.json(feedback)

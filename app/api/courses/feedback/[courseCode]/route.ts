@@ -69,12 +69,18 @@ export async function GET(
     const fullCourseName = courseNames[courseCode] || courseCode
 
     // Use the existing scraping logic by calling the same function
-    // For now, we'll use a simplified version
     const feedback = await scrapeRedditForCourse(courseCode, fullCourseName)
     
+    // Log what we're returning (for debugging on Vercel)
+    console.log(`[Feedback API] Returning feedback for ${courseCode}:`, {
+      hasPositiveFeedback: feedback.positiveFeedback?.length || 0,
+      hasNegativeFeedback: feedback.negativeFeedback?.length || 0,
+      hasRedditPosts: feedback.redditPosts?.length || 0
+    })
+    
     return NextResponse.json(feedback)
-  } catch (error) {
-    console.error('Error fetching course feedback:', error)
+  } catch (error: any) {
+    console.error('[Feedback API] Error fetching course feedback:', error.message || error)
     return createErrorResponse(error, 'Failed to fetch course feedback')
   }
 }
@@ -147,36 +153,60 @@ async function scrapeRedditForCourse(
     for (const term of searchTerms) {
       try {
         const searchUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(term)}&restrict_sr=1&limit=10&sort=relevance&t=all`
+        
+        // Create AbortController for timeout on Vercel
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout per request
+        
         const response = await fetch(searchUrl, {
           headers: { 
-            'User-Agent': 'SyllabusOS/1.0 (https://syllabusos.vercel.app)',
+            'User-Agent': 'Mozilla/5.0 (compatible; SyllabusOS/1.0; +https://syllabusos.vercel.app)',
             'Accept': 'application/json'
           },
-          // Remove next.revalidate - not supported in API routes on Vercel
-          cache: 'no-store' // Always fetch fresh data
+          cache: 'no-store',
+          signal: controller.signal
         })
+        
+        clearTimeout(timeoutId)
         
         if (response.ok) {
           const data = await response.json()
           const posts = data.data?.children || []
-          allPosts = [...allPosts, ...posts]
+          if (posts.length > 0) {
+            allPosts = [...allPosts, ...posts]
+            console.log(`[Reddit] Found ${posts.length} posts for "${term}"`)
+          }
+        } else {
+          console.warn(`[Reddit] Response not OK for "${term}": ${response.status} ${response.statusText}`)
         }
+        
+        // Small delay between requests
         await new Promise(resolve => setTimeout(resolve, 500))
-      } catch (err) {
-        console.error(`Error searching "${term}":`, err)
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.error(`[Reddit] Request timeout for "${term}"`)
+        } else {
+          console.error(`[Reddit] Error searching "${term}":`, err.message || err)
+        }
+        // Continue to next search term even if one fails
       }
     }
 
     // Remove duplicates
     const uniquePosts = Array.from(
       new Map(allPosts.map((p: any) => [p.data?.permalink || p.data?.id, p])).values()
-    ).filter((p: any) => p.data)
+    ).filter((p: any) => p && p.data)
 
-    // Process posts
+    console.log(`[Reddit] Total unique posts found: ${uniquePosts.length}`)
+
+    // Always process posts, even if empty - processRedditPosts handles empty arrays
     return processRedditPosts(uniquePosts, courseCode, fullCourseName)
-  } catch (error) {
-    console.error('[Reddit] Error scraping:', error)
-    return getDefaultFeedback(courseCode, fullCourseName)
+  } catch (error: any) {
+    console.error('[Reddit] Critical error scraping:', error.message || error)
+    // Even on error, try to return something useful with at least basic stats
+    const defaultFeedback = getDefaultFeedback(courseCode, fullCourseName)
+    console.warn('[Reddit] Returning default feedback due to error')
+    return defaultFeedback
   }
 }
 

@@ -79,16 +79,10 @@ export function StudentNav() {
     async function checkEscalationResponses() {
       try {
         const { getEscalations } = await import('@/lib/api/escalations')
-        const result = await getEscalations()
+        const response = await getEscalations()
         
-        // Handle both array and object responses
-        const escalations = Array.isArray(result) ? result : (result.escalations || [])
-        
-        // Ensure escalations is an array
-        if (!Array.isArray(escalations)) {
-          console.warn('Escalations is not an array:', escalations)
-          return
-        }
+        // Handle both array and EscalationsResponse formats
+        const escalations = Array.isArray(response) ? response : (response.escalations || [])
         
         // Get viewed responses from localStorage
         const stored = localStorage.getItem('escalation_viewed_responses')

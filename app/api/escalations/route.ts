@@ -82,24 +82,33 @@ export async function GET(request: NextRequest) {
     // Apply filters based on role
     if (profile.role === 'professor') {
       // Professors see escalations for their courses (use cached query)
-      const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
+      try {
+        const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
-      if (courseId && !singleCourse) {
-        return NextResponse.json(
-          { error: 'Course not found or access denied' },
-          { status: 404 }
-        )
+        if (courseId && !singleCourse) {
+          const duration = Date.now() - startTime
+          logger.apiResponse('GET', '/api/escalations', 404, duration)
+          return NextResponse.json(
+            { error: 'Course not found or access denied' },
+            { status: 404 }
+          )
+        }
+
+        if (!courseIds || courseIds.length === 0) {
+          // No courses, return empty array
+          const duration = Date.now() - startTime
+          logger.apiResponse('GET', '/api/escalations', 200, duration)
+          return NextResponse.json({
+            escalations: [],
+            patterns: undefined,
+          })
+        }
+
+        query = query.in('course_id', courseIds)
+      } catch (cacheError) {
+        logger.apiError('GET', '/api/escalations', cacheError, 500)
+        throw new Error(`Failed to fetch professor courses: ${cacheError instanceof Error ? cacheError.message : 'Unknown error'}`)
       }
-
-      if (!courseIds || courseIds.length === 0) {
-        // No courses, return empty array
-        return NextResponse.json({
-          escalations: [],
-          patterns: undefined,
-        })
-      }
-
-      query = query.in('course_id', courseIds)
     } else {
       // Students see only their own escalations
       query = query.eq('student_id', user.id)
@@ -125,24 +134,31 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform response to match API contract
-    const response: Escalation[] = (escalations || []).map((e: any) => ({
-      id: e.id,
-      courseId: e.course_id,
-      studentId: e.student_id,
-      studentName: e.profiles?.name || null,
-      studentEmail: e.profiles?.email || null,
-      query: e.query,
-      status: e.status,
-      category: e.category,
-      createdAt: e.created_at,
-      resolvedAt: e.resolved_at || null,
-      response: e.response || null,
-      respondedAt: e.responded_at || null,
-      respondedBy: e.responded_by || null,
-      videoUrl: e.video_url || null,
-      videoGeneratedAt: e.video_generated_at || null,
-      videoGenerationStatus: e.video_generation_status || null,
-    }))
+    const response: Escalation[] = (escalations || []).map((e: any) => {
+      // Handle profiles being an array or object
+      const studentProfile = Array.isArray(e.profiles) 
+        ? e.profiles[0] 
+        : e.profiles
+      
+      return {
+        id: e.id,
+        courseId: e.course_id,
+        studentId: e.student_id,
+        studentName: studentProfile?.name || null,
+        studentEmail: studentProfile?.email || null,
+        query: e.query,
+        status: e.status,
+        category: e.category,
+        createdAt: e.created_at,
+        resolvedAt: e.resolved_at || null,
+        response: e.response || null,
+        respondedAt: e.responded_at || null,
+        respondedBy: e.responded_by || null,
+        videoUrl: e.video_url || null,
+        videoGeneratedAt: e.video_generated_at || null,
+        videoGenerationStatus: e.video_generation_status || null,
+      }
+    })
 
     // Pattern detection: Count escalations by category for the past week
     const patterns: Array<{ category: string; count: number }> = []

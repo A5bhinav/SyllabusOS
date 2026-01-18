@@ -10,6 +10,143 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { BookOpen, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { StudentNav } from '@/components/student/StudentNav'
+import type { Course } from '@/types/api'
+
+// UCSC fake courses (for demo courses not in database)
+const FAKE_UCSC_COURSES: Course[] = [
+  {
+    id: 'fake-course-1',
+    name: 'CMPS 101 - Algorithms and Abstract Data Types',
+    professorId: 'prof-1',
+    professorName: 'Dr. Patrick Tantalo',
+    professorEmail: 'tantalo@ucsc.edu',
+    joinCode: 'CMPS10',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-2',
+    name: 'CMPS 12B - Data Structures',
+    professorId: 'prof-2',
+    professorName: 'Prof. Darrell Long',
+    professorEmail: 'darrell@ucsc.edu',
+    joinCode: 'CMPS12',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-3',
+    name: 'MATH 19A - Calculus for Science, Engineering, and Mathematics',
+    professorId: 'prof-3',
+    professorName: 'Dr. Francois Ziegler',
+    professorEmail: 'ziegler@ucsc.edu',
+    joinCode: 'MATH19',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-4',
+    name: 'CSE 101 - Algorithms and Complexity',
+    professorId: 'prof-4',
+    professorName: 'Prof. Dustin Long',
+    professorEmail: 'dlong@ucsc.edu',
+    joinCode: 'CSE101',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-5',
+    name: 'ECON 1 - Introductory Microeconomics',
+    professorId: 'prof-5',
+    professorName: 'Dr. Mark Traugott',
+    professorEmail: 'traugott@ucsc.edu',
+    joinCode: 'ECON01',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-6',
+    name: 'CHEM 1B - General Chemistry',
+    professorId: 'prof-6',
+    professorName: 'Dr. Glenn Millhauser',
+    professorEmail: 'glenn@ucsc.edu',
+    joinCode: 'CHEM1B',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-7',
+    name: 'PHYS 5A - Introduction to Physics I',
+    professorId: 'prof-7',
+    professorName: 'Dr. Michael Dine',
+    professorEmail: 'mdine@ucsc.edu',
+    joinCode: 'PHYS5A',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-8',
+    name: 'BIOL 20A - Cell and Molecular Biology',
+    professorId: 'prof-8',
+    professorName: 'Dr. William Saxton',
+    professorEmail: 'saxton@ucsc.edu',
+    joinCode: 'BIOL20',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-9',
+    name: 'STAT 5 - Statistics',
+    professorId: 'prof-9',
+    professorName: 'Prof. Bruno Sanso',
+    professorEmail: 'sanso@ucsc.edu',
+    joinCode: 'STAT05',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-10',
+    name: 'LIT 1 - Introduction to Literature',
+    professorId: 'prof-10',
+    professorName: 'Prof. Micah Perks',
+    professorEmail: 'mperks@ucsc.edu',
+    joinCode: 'LIT001',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-11',
+    name: 'PSYC 1 - Introduction to Psychology',
+    professorId: 'prof-11',
+    professorName: 'Dr. Karen Page',
+    professorEmail: 'kpage@ucsc.edu',
+    joinCode: 'PSYC01',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+  {
+    id: 'fake-course-12',
+    name: 'CSE 12 - Computer Systems and Assembly Language',
+    professorId: 'prof-12',
+    professorName: 'Prof. Charlie McDowell',
+    professorEmail: 'mcdowell@ucsc.edu',
+    joinCode: 'CSE012',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEnrolled: false,
+  },
+]
 
 export default function EnrollCoursePage() {
   const router = useRouter()
@@ -23,6 +160,7 @@ export default function EnrollCoursePage() {
     name: string
     professorName: string | null
     professorEmail: string | null
+    joinCode: string | null
   } | null>(null)
   const [joinCode, setJoinCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -37,24 +175,34 @@ export default function EnrollCoursePage() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch('/api/courses')
-      if (!response.ok) {
-        throw new Error('Failed to load course')
-      }
-      
-      const courses = await response.json()
-      const foundCourse = courses.find((c: any) => c.id === courseId)
-      
-      if (!foundCourse) {
-        setError('Course not found')
+      // Check if it's a fake course first
+      const fakeCourse = FAKE_UCSC_COURSES.find(c => c.id === courseId)
+      if (fakeCourse) {
+      setCourse({
+        id: fakeCourse.id,
+        name: fakeCourse.name,
+        professorName: fakeCourse.professorName,
+        professorEmail: fakeCourse.professorEmail,
+        joinCode: fakeCourse.joinCode,
+      })
+        setLoading(false)
         return
       }
+      
+      // Try loading from API
+      const response = await fetch(`/api/courses/${courseId}`)
+      if (!response.ok) {
+        throw new Error('Course not found')
+      }
+      
+      const foundCourse = await response.json()
       
       setCourse({
         id: foundCourse.id,
         name: foundCourse.name,
         professorName: foundCourse.professorName,
         professorEmail: foundCourse.professorEmail,
+        joinCode: foundCourse.joinCode,
       })
     } catch (err: any) {
       console.error('Error loading course:', err)
@@ -65,15 +213,39 @@ export default function EnrollCoursePage() {
   }
 
   async function handleEnroll() {
-    if (!joinCode.trim()) {
+    // If course requires join code, validate it
+    if (course?.joinCode && !joinCode.trim()) {
       setError('Please enter a join code')
       return
+    }
+
+    // For fake courses, verify join code matches
+    if (course?.joinCode) {
+      const normalizedCode = joinCode.trim().toUpperCase()
+      const expectedCode = course.joinCode.toUpperCase()
+      
+      if (normalizedCode !== expectedCode) {
+        setError(`Invalid join code. The join code for this course is "${expectedCode}". Please enter the correct code and try again.`)
+        return
+      }
     }
 
     try {
       setSubmitting(true)
       setError(null)
       
+      // For fake courses, we can't actually enroll (they're not in the database)
+      // But we can simulate success and redirect
+      if (courseId.startsWith('fake-course-')) {
+        // Simulate enrollment success for demo
+        setSuccess(true)
+        setTimeout(() => {
+          router.replace(`/student/chat?courseId=${courseId}&enrolled=true`)
+        }, 500)
+        return
+      }
+      
+      // For real courses, use the join API
       const response = await fetch('/api/enrollments/join', {
         method: 'POST',
         headers: {
@@ -213,30 +385,36 @@ export default function EnrollCoursePage() {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="joinCode">Join Code</Label>
-            <Input
-              id="joinCode"
-              type="text"
-              placeholder="Enter 6-character code"
-              value={joinCode}
-              onChange={(e) => {
-                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
-                setJoinCode(value)
-                setError(null)
-              }}
-              className="text-center text-2xl font-mono tracking-widest"
-              maxLength={6}
-              disabled={submitting}
-            />
-            <p className="text-xs text-muted-foreground">
-              Enter the 6-character join code provided by your professor
-            </p>
-          </div>
+          {course?.joinCode ? (
+            <div className="space-y-2">
+              <Label htmlFor="joinCode">Join Code</Label>
+              <Input
+                id="joinCode"
+                type="text"
+                placeholder="Enter join code"
+                value={joinCode}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+                  setJoinCode(value)
+                  setError(null)
+                }}
+                className="text-center text-2xl font-mono tracking-widest"
+                maxLength={10}
+                disabled={submitting}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the join code provided by your professor
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
+              This course does not require a join code. Click enroll to join directly.
+            </div>
+          )}
 
           <Button
             onClick={handleEnroll}
-            disabled={submitting || !joinCode.trim() || joinCode.length !== 6}
+            disabled={submitting || (course?.joinCode ? !joinCode.trim() : false)}
             className="w-full"
             size="lg"
           >

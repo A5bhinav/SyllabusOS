@@ -54,30 +54,30 @@ export async function GET(request: NextRequest) {
     const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
     if (courseId && !singleCourse) {
-      return NextResponse.json(
-        { error: 'Course not found or access denied' },
-        { status: 404 }
-      )
-    }
+        return NextResponse.json(
+          { error: 'Course not found or access denied' },
+          { status: 404 }
+        )
+      }
 
     if (!courseIds || courseIds.length === 0) {
-      // No courses, return empty report
-      return NextResponse.json({
-        totalQueries: 0,
-        escalationCount: 0,
-        dailyTrends: [],
-        queryDistribution: {
-          POLICY: 0,
-          CONCEPT: 0,
-          ESCALATE: 0,
-        },
-        metrics: {
-          totalQueriesToday: 0,
-          escalationsPending: 0,
-          avgResponseTime: 0,
-        },
-      } as PulseResponse)
-    }
+        // No courses, return empty report
+        return NextResponse.json({
+          totalQueries: 0,
+          escalationCount: 0,
+          dailyTrends: [],
+          queryDistribution: {
+            POLICY: 0,
+            CONCEPT: 0,
+            ESCALATE: 0,
+          },
+          metrics: {
+            totalQueriesToday: 0,
+            escalationsPending: 0,
+            avgResponseTime: 0,
+          },
+        } as PulseResponse)
+      }
 
     // Build optimized query with SQL aggregation instead of loading all records
     const courseFilter = courseId ? [courseId] : courseIds
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
       date.setDate(date.getDate() - i)
       const nextDate = new Date(date)
       nextDate.setDate(nextDate.getDate() + 1)
-      
+
       dateBoundaries.push({
         start: date.getTime(),
         end: nextDate.getTime(),
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
       const dayCount = logDates.filter(
         ({ timestamp }) => timestamp >= boundary.start && timestamp < boundary.end
       ).length
-      
+
       dailyTrends.push({
         date: boundary.dateStr,
         count: dayCount,

@@ -159,14 +159,14 @@ export default function OnboardingPage() {
     <>
       {hasExistingCourses && <ProfessorNav />}
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto max-w-2xl py-8 px-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">Course Setup</CardTitle>
-              <CardDescription>
-                Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started, or try the demo course
-              </CardDescription>
-            </CardHeader>
+    <div className="container mx-auto max-w-2xl py-8 px-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Course Setup</CardTitle>
+          <CardDescription>
+            Upload your course syllabus (PDF) and schedule (CSV or Excel) to get started, or try the demo course
+          </CardDescription>
+        </CardHeader>
         <CardContent className="space-y-6">
           <div className="border-b pb-6">
             <h3 className="text-lg font-semibold mb-2">Try Demo Course (UCSC CMPS 5J)</h3>
@@ -251,7 +251,7 @@ export default function OnboardingPage() {
           </div>
         </CardContent>
       </Card>
-        </div>
+    </div>
       </div>
     </>
   )

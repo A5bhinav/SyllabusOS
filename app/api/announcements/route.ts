@@ -69,15 +69,15 @@ export async function GET(request: NextRequest) {
       const { courseIds, singleCourse } = await getProfessorCourses(supabase, user.id, courseId || null)
 
       if (courseId && !singleCourse) {
-        return NextResponse.json(
-          { error: 'Course not found or access denied' },
-          { status: 404 }
-        )
-      }
+          return NextResponse.json(
+            { error: 'Course not found or access denied' },
+            { status: 404 }
+          )
+        }
 
       if (!courseIds || courseIds.length === 0) {
-        // No courses, return empty array
-        return NextResponse.json([])
+          // No courses, return empty array
+          return NextResponse.json([])
       }
 
       query = query.in('course_id', courseIds)

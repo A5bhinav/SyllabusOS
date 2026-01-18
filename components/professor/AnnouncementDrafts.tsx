@@ -164,7 +164,7 @@ export function AnnouncementDrafts() {
             </p>
             <p className="text-xs text-muted-foreground max-w-sm">
               Run the Sunday Night Conductor to generate announcements
-            </p>
+          </p>
           </div>
         ) : (
           <div className="space-y-4">

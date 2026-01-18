@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getEscalations, resolveEscalation, updateEscalationResponse } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { CheckCircle2, Clock, Mail, User, MessageSquare, Send, Sparkles, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Clock, Mail, User, MessageSquare, Send, Sparkles, AlertTriangle, Video, RefreshCw, Play } from 'lucide-react'
 import { format } from 'date-fns'
 import { getCategoryColor, type EscalationCategory } from '@/lib/utils/escalation-categorizer'
 
@@ -21,6 +21,8 @@ export function EscalationQueue() {
   const [suggestedResponses, setSuggestedResponses] = useState<Record<string, string>>({})
   const [loadingSuggestions, setLoadingSuggestions] = useState<Record<string, boolean>>({})
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Record<string, boolean>>({})
+  const [videoStatuses, setVideoStatuses] = useState<Record<string, { status: string; videoUrl?: string }>>({})
+  const [pollingVideo, setPollingVideo] = useState<Record<string, boolean>>({})
 
   const loadEscalations = useCallback(async () => {
     try {
@@ -32,6 +34,30 @@ export function EscalationQueue() {
       // Filter for pending escalations
       const pending = escalationsList.filter(e => e.status === 'pending')
       setEscalations(pending)
+      
+      // Load video statuses for escalations with responses
+      // Note: Escalations in the pending list might have responses if they were just submitted
+      const statuses: Record<string, { status: string; videoUrl?: string }> = {}
+      for (const esc of pending) {
+        // Only check video status if escalation has a response
+        if (esc.response || esc.videoGenerationStatus) {
+          try {
+            const statusRes = await fetch(`/api/escalations/${esc.id}/video-status`)
+            if (statusRes.ok) {
+              const statusData = await statusRes.json()
+              statuses[esc.id] = statusData
+              
+              // If status is pending or processing, start polling
+              if (statusData.status === 'pending' || statusData.status === 'processing') {
+                setPollingVideo(prev => ({ ...prev, [esc.id]: true }))
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to load video status for ${esc.id}:`, err)
+          }
+        }
+      }
+      setVideoStatuses(statuses)
     } catch (err) {
       console.error('Error loading escalations:', err)
       setError('Failed to load escalations')
@@ -119,6 +145,15 @@ export function EscalationQueue() {
         delete next[id]
         return next
       })
+      
+      // Video generation is triggered automatically by the API
+      // Start polling for video status
+      setVideoStatuses(prev => ({
+        ...prev,
+        [id]: { status: 'pending' },
+      }))
+      setPollingVideo(prev => ({ ...prev, [id]: true }))
+      
       await loadEscalations()
     } catch (err) {
       console.error('Error submitting response:', err)
@@ -127,6 +162,70 @@ export function EscalationQueue() {
       setSubmittingResponse(null)
     }
   }, [responseTexts, loadEscalations])
+  
+  // Poll video status for escalations being processed
+  useEffect(() => {
+    const pollingIntervals: Record<string, NodeJS.Timeout> = {}
+    
+    Object.keys(pollingVideo).forEach(escalationId => {
+      if (pollingVideo[escalationId]) {
+        const pollStatus = async () => {
+          try {
+            const res = await fetch(`/api/escalations/${escalationId}/video-status`)
+            if (res.ok) {
+              const data = await res.json()
+              setVideoStatuses(prev => ({
+                ...prev,
+                [escalationId]: data,
+              }))
+              
+              // Stop polling if completed or failed
+              if (data.status === 'completed' || data.status === 'failed') {
+                setPollingVideo(prev => {
+                  const next = { ...prev }
+                  delete next[escalationId]
+                  return next
+                })
+                if (pollingIntervals[escalationId]) {
+                  clearInterval(pollingIntervals[escalationId])
+                  delete pollingIntervals[escalationId]
+                }
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to poll video status for ${escalationId}:`, err)
+          }
+        }
+        
+        // Poll immediately, then every 2 seconds
+        pollStatus()
+        pollingIntervals[escalationId] = setInterval(pollStatus, 2000)
+      }
+    })
+    
+    return () => {
+      Object.values(pollingIntervals).forEach(interval => clearInterval(interval))
+    }
+  }, [pollingVideo])
+  
+  const handleRegenerateVideo = useCallback(async (escalationId: string) => {
+    try {
+      const res = await fetch(`/api/escalations/${escalationId}/generate-video`, {
+        method: 'POST',
+      })
+      
+      if (res.ok) {
+        setVideoStatuses(prev => ({
+          ...prev,
+          [escalationId]: { status: 'pending' },
+        }))
+        setPollingVideo(prev => ({ ...prev, [escalationId]: true }))
+      }
+    } catch (err) {
+      console.error('Failed to regenerate video:', err)
+      setError('Failed to regenerate video')
+    }
+  }, [])
 
   if (loading) {
     return (
@@ -244,8 +343,41 @@ export function EscalationQueue() {
                     </div>
 
                     {escalation.response && (
-                      <div className="pt-2 border-t">
+                      <div className="pt-2 border-t space-y-3">
                         <p className="text-sm font-medium mb-1 text-green-700 dark:text-green-400">Your Response:</p>
+                        
+                        {/* Video generation status */}
+                        {videoStatuses[escalation.id] && (
+                          <div className="flex items-center gap-2">
+                            {videoStatuses[escalation.id].status === 'pending' || videoStatuses[escalation.id].status === 'processing' ? (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <LoadingSpinner size="sm" />
+                                <span>Generating video...</span>
+                              </div>
+                            ) : videoStatuses[escalation.id].status === 'completed' && videoStatuses[escalation.id].videoUrl ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(videoStatuses[escalation.id].videoUrl, '_blank')}
+                                className="gap-2"
+                              >
+                                <Play className="h-3 w-3" />
+                                View Video
+                              </Button>
+                            ) : videoStatuses[escalation.id].status === 'failed' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRegenerateVideo(escalation.id)}
+                                className="gap-2"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                Regenerate
+                              </Button>
+                            ) : null}
+                          </div>
+                        )}
+                        
                         <p className="text-sm bg-green-50 dark:bg-green-950/20 p-2 rounded border border-green-200 dark:border-green-800">
                           {escalation.response}
                         </p>

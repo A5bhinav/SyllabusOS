@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { getEscalations } from '@/lib/api/escalations'
 import type { Escalation } from '@/types/api'
-import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight, Bell } from 'lucide-react'
+import { Clock, CheckCircle2, MessageSquare, AlertCircle, Filter, ChevronLeft, ChevronRight, Bell, Video } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -318,6 +318,25 @@ export function StudentEscalations() {
                           <MessageSquare className="h-5 w-5 text-primary" />
                           <p className="text-sm font-semibold text-primary">Professor's Response</p>
                         </div>
+                        
+                        {/* Video player if available */}
+                        {currentEscalation.videoUrl && (
+                          <div className="rounded-lg overflow-hidden border border-primary/20 bg-black">
+                            <video
+                              controls
+                              className="w-full max-w-md mx-auto"
+                              src={currentEscalation.videoUrl}
+                              preload="metadata"
+                            >
+                              Your browser does not support the video tag.
+                            </video>
+                            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1 justify-center">
+                              <Video className="h-3 w-3" />
+                              Video response available
+                            </p>
+                          </div>
+                        )}
+                        
                         <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg p-4">
                           <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                             {currentEscalation.response}

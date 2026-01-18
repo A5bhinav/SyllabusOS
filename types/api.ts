@@ -80,6 +80,9 @@ export interface Escalation {
   response?: string | null
   respondedAt?: string | null
   respondedBy?: string | null
+  videoUrl?: string | null
+  videoGeneratedAt?: string | null
+  videoGenerationStatus?: 'pending' | 'processing' | 'completed' | 'failed' | null
 }
 
 export interface ConductorRequest {

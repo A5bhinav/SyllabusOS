@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createUnauthorizedError, createForbiddenError, createNotFoundError, validateRequired, validateType } from '@/lib/utils/api-errors'
 import { logger } from '@/lib/utils/logger'
 import { getProfessorCourses } from '@/lib/utils/course-cache'
+import { generateVideoAsync } from '@/lib/video/worker'
 import type { Escalation } from '@/types/api'
+import type { EscalationContext } from '@/lib/video/generator'
 
 /**
  * GET /api/escalations
@@ -67,6 +69,9 @@ export async function GET(request: NextRequest) {
         response,
         responded_at,
         responded_by,
+        video_url,
+        video_generated_at,
+        video_generation_status,
         profiles!escalations_student_id_fkey (
           name,
           email
@@ -134,6 +139,9 @@ export async function GET(request: NextRequest) {
       response: e.response || null,
       respondedAt: e.responded_at || null,
       respondedBy: e.responded_by || null,
+      videoUrl: e.video_url || null,
+      videoGeneratedAt: e.video_generated_at || null,
+      videoGenerationStatus: e.video_generation_status || null,
     }))
 
     // Pattern detection: Count escalations by category for the past week
@@ -315,17 +323,57 @@ export async function PUT(request: NextRequest) {
       updateData.response = response
       updateData.responded_at = new Date().toISOString()
       updateData.responded_by = user.id
+      // Trigger video generation automatically
+      updateData.video_generation_status = 'pending'
     }
 
     const { data: updatedEscalation, error: updateError } = await supabase
       .from('escalations')
       .update(updateData)
       .eq('id', escalationId)
-      .select()
+      .select(`
+        id,
+        status,
+        resolved_at,
+        response,
+        responded_at,
+        responded_by,
+        student_id,
+        category,
+        courses (
+          name
+        ),
+        profiles!escalations_student_id_fkey (
+          name
+        )
+      `)
       .single()
 
     if (updateError || !updatedEscalation) {
       throw updateError || new Error('Failed to update escalation')
+    }
+
+    // Trigger async video generation if response was provided
+    if (response !== undefined && response.trim().length > 0) {
+      // Get student and course context
+      const studentProfile = Array.isArray(updatedEscalation.profiles)
+        ? updatedEscalation.profiles[0]
+        : updatedEscalation.profiles
+      const course = Array.isArray(updatedEscalation.courses)
+        ? updatedEscalation.courses[0]
+        : updatedEscalation.courses
+
+      const context: EscalationContext = {
+        studentName: studentProfile?.name || undefined,
+        category: updatedEscalation.category || undefined,
+        courseName: course?.name || undefined,
+      }
+
+      // Trigger video generation asynchronously (non-blocking)
+      generateVideoAsync(updatedEscalation.id, response, context).catch(error => {
+        console.error(`[Escalations API] Failed to trigger video generation:`, error)
+        // Don't fail the request if video generation fails
+      })
     }
 
     const duration = Date.now() - startTime
